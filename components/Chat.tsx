@@ -8,7 +8,7 @@ import {
 } from '../utils';
 import { 
   Send, LogOut, MessageSquare, Users, Hash, Lock, 
-  UserPlus, Menu, Info, X, Check, Camera, Settings, Plus
+  UserPlus, Menu, Info, X, Check, Camera, Settings, Plus, Search
 } from 'lucide-react';
 
 interface ChatProps {

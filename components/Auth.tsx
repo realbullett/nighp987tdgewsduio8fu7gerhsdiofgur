@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
-import { ShieldCheck, Lock, User as UserIcon, Zap, Camera, Upload } from 'lucide-react';
+import { ShieldCheck, Lock, User as UserIcon, Zap, Camera, Upload, AlertTriangle } from 'lucide-react';
 import { registerUser, loginUser, getUserProfile } from '../utils';
 
 interface AuthProps {
@@ -49,12 +49,12 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           if (profile) onLogin({ username, isAuthenticated: true, avatar: profile.avatar });
         } catch (loginErr: any) {
            // If auto-login fails, check if it's because email is not confirmed
-           if (loginErr.message.toLowerCase().includes("email not confirmed")) {
-             setError("Success! Please check your email to verify your identity before logging in.");
+           if (loginErr.message.includes("Email not confirmed")) {
+             setError("CRITICAL: Supabase Email Confirmation is ENABLED. Please go to your Supabase Dashboard -> Authentication -> Providers -> Email and DISABLE 'Confirm email'. Then try logging in.");
              setIsRegistering(false); // Switch to login mode
              return;
            }
-           throw loginErr; // Throw other errors
+           throw loginErr; 
         }
 
       } else {
@@ -90,7 +90,11 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         </div>
 
         {error && (
-          <div className={`mb-6 p-4 rounded-xl text-xs font-medium text-center leading-relaxed border ${error.includes("Success") ? 'bg-green-950/20 border-green-500/20 text-green-300' : 'bg-red-950/20 border-red-500/20 text-red-300'}`}>
+          <div className={`mb-6 p-4 rounded-xl text-xs font-medium text-center leading-relaxed border flex flex-col items-center gap-2 ${error.includes("Success") ? 'bg-green-950/20 border-green-500/20 text-green-300' : 'bg-red-950/20 border-red-500/20 text-red-300'}`}>
+            <div className="flex items-center gap-2 font-bold uppercase tracking-wide">
+               {error.includes("CRITICAL") && <AlertTriangle className="w-4 h-4" />}
+               System Notice
+            </div>
             {error}
           </div>
         )}
@@ -157,12 +161,12 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-purple-900 hover:bg-purple-800 text-purple-100 font-semibold py-4 rounded-xl shadow-lg shadow-purple-900/20 transition-all duration-200 mt-2 flex items-center justify-center gap-2"
+            className="w-full bg-purple-900 hover:bg-purple-800 text-purple-100 font-semibold py-4 rounded-xl shadow-lg shadow-purple-900/20 transition-all duration-200 mt-2 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
                  <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                 <span className="text-sm">Connecting to Vault...</span>
+                 <span className="text-sm">Authenticating...</span>
               </>
             ) : (
               <>

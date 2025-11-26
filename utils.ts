@@ -131,16 +131,41 @@ const getEmail = (username: string) => `${username}@obsidian.chat`;
 export const registerUser = async (username: string, password: string, avatarBase64: string): Promise<void> => {
   const email = getEmail(username);
   
-  // 1. Sign up with Supabase Auth
+  // 1. Check if username is globally taken in profiles
+  const { data: existingUsers } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('username', username)
+    .limit(1);
+
+  if (existingUsers && existingUsers.length > 0) {
+    throw new Error("Username already registered. Please log in.");
+  }
+
+  // 2. Sign up with Supabase Auth
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
   });
 
-  if (authError) throw new Error(authError.message);
+  if (authError) {
+    if (authError.message.includes("registered")) {
+       throw new Error("Account exists. Please log in.");
+    }
+    throw new Error(authError.message);
+  }
+
   if (!authData.user) throw new Error("Registration failed. Please try again.");
 
-  // 2. Create Profile
+  // 3. Check for Email Confirmation Requirement
+  // If session is null but user exists, Supabase is waiting for email confirmation
+  if (authData.user && !authData.session) {
+    // We cannot proceed to create profile easily if RLS is on, but usually public inserts are allowed.
+    // However, the user is NOT logged in.
+    throw new Error("SUPABASE_CONFIG_ISSUE: Email confirmation is enabled on your Supabase project. Please go to Authentication -> Providers -> Email and disable 'Confirm email' to use this app with generated emails.");
+  }
+
+  // 4. Create Profile
   const avatar = await resizeImage(avatarBase64, 200, 200);
   
   const { error: profileError } = await supabase
@@ -150,28 +175,55 @@ export const registerUser = async (username: string, password: string, avatarBas
     ]);
 
   if (profileError) {
-    // If profile creation fails (e.g. duplicate username), we should probably cleanup or warn
+    // If we hit a duplicate error here (race condition), guide the user
+    if (profileError.code === '23505') {
+        // Profile already exists, which is fine, just proceed to login
+        return;
+    }
     throw new Error("Could not create profile: " + profileError.message);
   }
 };
 
 export const loginUser = async (username: string, password: string) => {
   const email = getEmail(username);
+  
+  // 1. Attempt Sign In
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password
   });
   
   if (error) {
-    // Expose the specific error (e.g. "Email not confirmed")
+    if (error.message.includes("Email not confirmed")) {
+       throw new Error("Email not confirmed. Please disable 'Confirm email' in your Supabase Dashboard -> Authentication -> Providers -> Email.");
+    }
     throw new Error(error.message);
   }
+
+  if (!data.user) throw new Error("Login failed.");
   
-  // Fetch profile to ensure it exists
-  const profile = await getUserProfile(username);
+  // 2. Auto-Heal: Check if profile exists
+  let profile = await getUserProfile(username);
+  
   if (!profile) {
-    // Edge case: User exists in Auth but not in Profiles table
-    throw new Error("Identity found but profile is missing. Database might be incomplete.");
+    console.warn("User logged in but profile missing. Attempting auto-heal...");
+    // Attempt to create the missing profile using the auth ID
+    // We use a default avatar since we don't have the original upload here
+    const defaultAvatar = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+    
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .upsert([
+        { id: data.user.id, username, avatar: defaultAvatar, updated_at: new Date() }
+      ]);
+      
+    if (insertError) {
+      console.error("Auto-heal failed:", insertError);
+      throw new Error("Account corrupted. Profile missing and could not be restored.");
+    }
+    
+    // Fetch again
+    profile = await getUserProfile(username);
   }
 
   return { user: data.user, profile };
@@ -310,7 +362,8 @@ export const getWelcomeChat = async (): Promise<ChatRoom> => {
     }
 
     // Get all users for the welcome group participant list
-    const { data: users } = await supabase.from('profiles').select('username');
+    // Limit to 50 for performance in this demo
+    const { data: users } = await supabase.from('profiles').select('username').limit(50);
     const allUsernames = users ? users.map((u: any) => u.username) : [];
 
     return {
@@ -410,7 +463,8 @@ export const getMessages = async (chatId: string): Promise<ChatMessage[]> => {
     .from('messages')
     .select('*')
     .eq('chat_id', chatId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .limit(100); // Limit message history load
 
   if (!data) return [];
 
