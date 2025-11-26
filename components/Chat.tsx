@@ -4,7 +4,7 @@ import { User, ChatRoom, ChatMessage, UserProfile } from '../types';
 import { 
   getMessages, sendMessage, getMyChats, getWelcomeChat,
   getUserProfile, sendFriendRequest, acceptFriendRequest, rejectFriendRequest,
-  createGroupChat, updateAvatar, subscribeToChat
+  createGroupChat, updateAvatar, subscribeToChat, decryptMessage
 } from '../utils';
 import { 
   Send, LogOut, MessageSquare, Users, Hash, Lock, 
@@ -75,13 +75,51 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   // Realtime Subscription for Active Chat
   useEffect(() => {
     if (activeChat) {
-      refreshMessages(); // Initial fetch
+      // Initial fetch to ensure history is loaded
+      refreshMessages(); 
       
       // Subscribe to Realtime Updates
-      const unsubscribe = subscribeToChat(activeChat.id, () => {
-        // When a new message comes in (from someone else), refresh the list
-        refreshMessages();
-        fetchChats(); // Update sidebar last message
+      const unsubscribe = subscribeToChat(activeChat.id, async (payload) => {
+        const newRecord = payload.new;
+        if (!newRecord) return;
+
+        // Optimistic Update Check:
+        // If I sent this message, I already added it to my UI in handleSendMessage.
+        // We ignore the realtime event for my own messages to prevent duplication or flickering.
+        if (newRecord.sender === user.username) return;
+
+        try {
+          // Decrypt the new incoming message
+          const content = await decryptMessage(newRecord.iv, newRecord.content, activeChat.id);
+          
+          const newMessage: ChatMessage = {
+            id: newRecord.id,
+            sender: newRecord.sender,
+            content: content,
+            timestamp: new Date(newRecord.created_at).getTime()
+          };
+
+          // Append to message list efficiently
+          setMessages((prev) => {
+            // Safety check for duplicates
+            if (prev.some(m => m.id === newMessage.id)) return prev;
+            return [...prev, newMessage];
+          });
+          
+          // Update Sidebar Last Message Preview
+          setMyChats((prev) => {
+            const updated = prev.map(c => 
+              c.id === activeChat.id 
+                ? { ...c, lastMessage: newMessage }
+                : c
+            );
+            // Sort active chat to top
+            return updated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
+          });
+
+        } catch (e) {
+          console.error("Failed to process incoming live message:", e);
+        }
       });
 
       // Load participant details

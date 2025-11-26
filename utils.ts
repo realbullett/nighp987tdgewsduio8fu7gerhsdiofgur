@@ -518,21 +518,17 @@ export const sendMessage = async (chatId: string, sender: string, content: strin
 };
 
 // --- Realtime Subscription ---
-export const subscribeToChat = (chatId: string, onMessage: () => void) => {
-  // console.log("Subscribing to chat:", chatId);
+export const subscribeToChat = (chatId: string, onMessage: (payload: any) => void) => {
   const channel = supabase
     .channel(`chat:${chatId}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
       (payload) => {
-        // console.log("New message received!", payload);
-        onMessage();
+        onMessage(payload);
       }
     )
-    .subscribe((status) => {
-      // console.log(`Subscription status for ${chatId}:`, status);
-    });
+    .subscribe();
     
   return () => {
     supabase.removeChannel(channel);
