@@ -1,0 +1,5 @@
+{
+  "name": "Obsidian Vault Chat",
+  "description": "A secure, encrypted chat application with a sleek black-purple aesthetic. Data is stored locally in simulated encrypted text files.",
+  "requestFramePermissions": []
+}
