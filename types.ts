@@ -15,6 +15,16 @@ export interface UserProfile {
   outgoingRequests: string[];
 }
 
+export interface Attachment {
+  type: 'image';
+  url: string; // Base64 data
+}
+
+export interface MessageContent {
+  text: string;
+  attachments?: Attachment[];
+}
+
 export interface Message {
   role: string;
   content: string;
@@ -23,11 +33,11 @@ export interface Message {
 export interface ChatMessage {
   id: string;
   sender: string;
-  content: string; // Decrypted content
+  content: string; // Now stores a JSON string of MessageContent, or plain text for legacy
   timestamp: number;
   // Supabase specific
   chat_id?: string;
-  iv?: string; // needed for decryption if stored raw
+  iv?: string; 
 }
 
 export interface ChatRoom {

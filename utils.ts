@@ -1,8 +1,8 @@
+
 import { createClient } from '@supabase/supabase-js';
-import { EncryptedFile, ChatMessage, ChatRoom, UserProfile } from './types';
+import { EncryptedFile, ChatMessage, ChatRoom, UserProfile, User } from './types';
 
 // --- Supabase Config ---
-// Using the project URL provided. The key should be the 'anon' public key.
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://bbgoqhhitsvoauuizxqr.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_Nx-rxr3-n7LqPAxjbNX6WA_pHHopblF';
 
@@ -94,7 +94,7 @@ export const decryptMessage = async (ivStr: string, dataStr: string, chatId: str
   }
 };
 
-export const resizeImage = (base64Str: string, maxWidth = 150, maxHeight = 150): Promise<string> => {
+export const resizeImage = (base64Str: string, maxWidth = 800, maxHeight = 800, quality = 0.7): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.src = base64Str;
@@ -118,15 +118,42 @@ export const resizeImage = (base64Str: string, maxWidth = 150, maxHeight = 150):
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       ctx?.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.6)); 
+      resolve(canvas.toDataURL('image/jpeg', quality)); 
     };
     img.onerror = () => resolve('');
   });
 };
 
+export const detectLinks = (text: string): string[] => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.match(urlRegex) || [];
+};
+
 // --- Auth Functions ---
 
 const getEmail = (username: string) => `${username}@obsidian.chat`;
+
+export const getCurrentUser = async (): Promise<User | null> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session || !session.user) return null;
+
+  // Verify against profiles to ensure consistency
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('username, avatar')
+    .eq('id', session.user.id)
+    .single();
+
+  if (profile) {
+    return {
+      username: profile.username,
+      isAuthenticated: true,
+      avatar: profile.avatar,
+      id: session.user.id
+    };
+  }
+  return null;
+};
 
 export const registerUser = async (username: string, password: string, avatarBase64: string): Promise<void> => {
   const email = getEmail(username);
@@ -158,11 +185,8 @@ export const registerUser = async (username: string, password: string, avatarBas
   if (!authData.user) throw new Error("Registration failed. Please try again.");
 
   // 3. Check for Email Confirmation Requirement
-  // If session is null but user exists, Supabase is waiting for email confirmation
   if (authData.user && !authData.session) {
-    // We cannot proceed to create profile easily if RLS is on, but usually public inserts are allowed.
-    // However, the user is NOT logged in.
-    throw new Error("SUPABASE_CONFIG_ISSUE: Email confirmation is enabled on your Supabase project. Please go to Authentication -> Providers -> Email and disable 'Confirm email' to use this app with generated emails.");
+    throw new Error("SUPABASE_CONFIG_ISSUE: Email confirmation is enabled on your Supabase project. Please go to Authentication -> Providers -> Email and disable 'Confirm email'.");
   }
 
   // 4. Create Profile
@@ -175,9 +199,7 @@ export const registerUser = async (username: string, password: string, avatarBas
     ]);
 
   if (profileError) {
-    // If we hit a duplicate error here (race condition), guide the user
     if (profileError.code === '23505') {
-        // Profile already exists, which is fine, just proceed to login
         return;
     }
     throw new Error("Could not create profile: " + profileError.message);
@@ -187,7 +209,6 @@ export const registerUser = async (username: string, password: string, avatarBas
 export const loginUser = async (username: string, password: string) => {
   const email = getEmail(username);
   
-  // 1. Attempt Sign In
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password
@@ -195,34 +216,26 @@ export const loginUser = async (username: string, password: string) => {
   
   if (error) {
     if (error.message.includes("Email not confirmed")) {
-       throw new Error("Email not confirmed. Please disable 'Confirm email' in your Supabase Dashboard -> Authentication -> Providers -> Email.");
+       throw new Error("Email not confirmed. Please disable 'Confirm email' in Supabase Dashboard.");
     }
     throw new Error(error.message);
   }
 
   if (!data.user) throw new Error("Login failed.");
   
-  // 2. Auto-Heal: Check if profile exists
+  // Auto-Heal
   let profile = await getUserProfile(username);
   
   if (!profile) {
-    console.warn("User logged in but profile missing. Attempting auto-heal...");
-    // Attempt to create the missing profile using the auth ID
-    // We use a default avatar since we don't have the original upload here
+    console.warn("Auto-healing profile...");
     const defaultAvatar = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
     
-    const { error: insertError } = await supabase
+    await supabase
       .from('profiles')
       .upsert([
         { id: data.user.id, username, avatar: defaultAvatar, updated_at: new Date() }
       ]);
-      
-    if (insertError) {
-      console.error("Auto-heal failed:", insertError);
-      throw new Error("Account corrupted. Profile missing and could not be restored.");
-    }
     
-    // Fetch again
     profile = await getUserProfile(username);
   }
 
@@ -235,7 +248,6 @@ export const logoutUser = async () => {
 
 export const getUserProfile = async (username: string): Promise<UserProfile | null> => {
   try {
-    // Fetch basic profile
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
@@ -244,7 +256,6 @@ export const getUserProfile = async (username: string): Promise<UserProfile | nu
 
     if (error || !profile) return null;
 
-    // Fetch Friends Logic
     const { data: friendships } = await supabase
       .from('friend_requests')
       .select('sender, receiver')
@@ -293,7 +304,7 @@ export const updateAvatar = async (username: string, avatarBase64: string) => {
     .eq('username', username);
 };
 
-// --- Friends ---
+// --- Friends & Chats ---
 
 export const sendFriendRequest = async (fromUser: string, toUser: string) => {
   const { data: receiver } = await supabase.from('profiles').select('username').eq('username', toUser).single();
@@ -333,8 +344,6 @@ export const rejectFriendRequest = async (currentUser: string, requester: string
     .eq('receiver', currentUser);
 };
 
-// --- Chats ---
-
 export const getDMChatId = (userA: string, userB: string) => {
   const sorted = [userA, userB].sort();
   return `dm_${sorted[0]}_${sorted[1]}`;
@@ -342,16 +351,13 @@ export const getDMChatId = (userA: string, userB: string) => {
 
 export const getWelcomeChat = async (): Promise<ChatRoom> => {
   try {
-    // Ensure welcome group exists in DB
     const { data, error } = await supabase.from('chats').select('*').eq('id', WELCOME_CHAT_ID).single();
     
     if (error && error.code === '42P01') {
-       // Table does not exist
-       throw new Error("System Tables Missing. Please run the SQL setup script in Supabase.");
+       throw new Error("System Tables Missing.");
     }
 
     if (!data) {
-      // Create it if it doesn't exist (First run)
       await supabase.from('chats').insert({
         id: WELCOME_CHAT_ID,
         type: 'group',
@@ -361,8 +367,6 @@ export const getWelcomeChat = async (): Promise<ChatRoom> => {
       });
     }
 
-    // Get all users for the welcome group participant list
-    // Limit to 50 for performance in this demo
     const { data: users } = await supabase.from('profiles').select('username').limit(50);
     const allUsernames = users ? users.map((u: any) => u.username) : [];
 
@@ -375,8 +379,6 @@ export const getWelcomeChat = async (): Promise<ChatRoom> => {
       avatar: ''
     };
   } catch (err: any) {
-    console.error("Failed to load welcome chat:", err);
-    // Return a dummy offline chat to prevent crash
     return {
       id: WELCOME_CHAT_ID,
       type: 'group',
@@ -408,11 +410,8 @@ export const createGroupChat = async (name: string, creator: string, members: st
 
 export const getMyChats = async (username: string): Promise<ChatRoom[]> => {
   const chats: ChatRoom[] = [];
-
-  // 1. Welcome Group
   chats.push(await getWelcomeChat());
 
-  // 2. Fetch DMs and Groups
   const { data: remoteChats } = await supabase
     .from('chats')
     .select('*')
@@ -426,7 +425,6 @@ export const getMyChats = async (username: string): Promise<ChatRoom[]> => {
     });
   }
 
-  // 3. Hydrate Last Message
   const hydratedChats = await Promise.all(chats.map(async (chat) => {
     const { data: msgs } = await supabase
       .from('messages')
@@ -464,7 +462,7 @@ export const getMessages = async (chatId: string): Promise<ChatMessage[]> => {
     .select('*')
     .eq('chat_id', chatId)
     .order('created_at', { ascending: true })
-    .limit(100); // Limit message history load
+    .limit(100);
 
   if (!data) return [];
 
@@ -484,7 +482,6 @@ export const getMessages = async (chatId: string): Promise<ChatMessage[]> => {
 export const sendMessage = async (chatId: string, sender: string, content: string): Promise<ChatMessage> => {
   const encrypted = await encryptMessage(content, chatId);
   
-  // Ensure chat exists for DMs (Lazy creation)
   if (chatId.startsWith('dm_')) {
     const { data } = await supabase.from('chats').select('id').eq('id', chatId).single();
     if (!data) {
@@ -499,7 +496,6 @@ export const sendMessage = async (chatId: string, sender: string, content: strin
     }
   }
 
-  // Insert and return the record for immediate UI update
   const { data, error } = await supabase.from('messages').insert({
     chat_id: chatId,
     sender,
@@ -512,12 +508,11 @@ export const sendMessage = async (chatId: string, sender: string, content: strin
   return {
     id: data.id,
     sender: data.sender,
-    content: content, // Return plain text for display
+    content: content,
     timestamp: new Date(data.created_at).getTime()
   };
 };
 
-// --- Realtime Subscription ---
 export const subscribeToChat = (chatId: string, onMessage: (payload: any) => void) => {
   const channel = supabase
     .channel(`chat:${chatId}`)

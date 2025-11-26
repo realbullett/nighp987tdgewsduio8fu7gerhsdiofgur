@@ -1,5 +1,5 @@
 {
-  "name": "Obsidian Vault Chat",
-  "description": "A secure, encrypted chat application powered by Supabase. Features real-time messaging, groups, and friend management.",
+  "name": "Night",
+  "description": "A cozy, encrypted space for late-night conversations. Features real-time messaging, 3D aesthetics, and secure groups.",
   "requestFramePermissions": []
 }
