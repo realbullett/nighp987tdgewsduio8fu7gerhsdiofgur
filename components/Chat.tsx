@@ -79,6 +79,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       
       // Subscribe to Realtime Updates
       const unsubscribe = subscribeToChat(activeChat.id, () => {
+        // When a new message comes in (from someone else), refresh the list
         refreshMessages();
         fetchChats(); // Update sidebar last message
       });
@@ -110,9 +111,32 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
     e.preventDefault();
     if (!inputText.trim() || !activeChat) return;
     
-    // Optimistic UI update could go here, but with Supabase Realtime it's fast enough usually
-    await sendMessage(activeChat.id, user.username, inputText);
-    setInputText('');
+    const tempText = inputText;
+    setInputText(''); // Clear input immediately
+    
+    try {
+      // Send and get the confirmed message object
+      const newMessage = await sendMessage(activeChat.id, user.username, tempText);
+      
+      // Optimistic Update: Add to message list immediately
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Update Sidebar preview immediately
+      setMyChats(prev => {
+        const updated = prev.map(c => 
+          c.id === activeChat.id 
+            ? { ...c, lastMessage: newMessage }
+            : c
+        );
+        // Sort: moves active chat to top
+        return updated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
+      });
+
+    } catch (err) {
+      console.error("Failed to send message", err);
+      alert("Failed to send message. Please check connection.");
+      setInputText(tempText); // Restore input on failure
+    }
   };
 
   const handleSendFriendRequest = async (e: React.FormEvent) => {

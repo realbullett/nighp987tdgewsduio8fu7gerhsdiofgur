@@ -481,7 +481,7 @@ export const getMessages = async (chatId: string): Promise<ChatMessage[]> => {
   return decrypted;
 };
 
-export const sendMessage = async (chatId: string, sender: string, content: string) => {
+export const sendMessage = async (chatId: string, sender: string, content: string): Promise<ChatMessage> => {
   const encrypted = await encryptMessage(content, chatId);
   
   // Ensure chat exists for DMs (Lazy creation)
@@ -499,26 +499,40 @@ export const sendMessage = async (chatId: string, sender: string, content: strin
     }
   }
 
-  await supabase.from('messages').insert({
+  // Insert and return the record for immediate UI update
+  const { data, error } = await supabase.from('messages').insert({
     chat_id: chatId,
     sender,
     content: encrypted.data,
     iv: encrypted.iv
-  });
+  }).select().single();
+
+  if (error) throw error;
+
+  return {
+    id: data.id,
+    sender: data.sender,
+    content: content, // Return plain text for display
+    timestamp: new Date(data.created_at).getTime()
+  };
 };
 
 // --- Realtime Subscription ---
 export const subscribeToChat = (chatId: string, onMessage: () => void) => {
+  // console.log("Subscribing to chat:", chatId);
   const channel = supabase
     .channel(`chat:${chatId}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
-      () => {
+      (payload) => {
+        // console.log("New message received!", payload);
         onMessage();
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      // console.log(`Subscription status for ${chatId}:`, status);
+    });
     
   return () => {
     supabase.removeChannel(channel);
