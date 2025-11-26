@@ -1,15 +1,16 @@
-
+import { createClient } from '@supabase/supabase-js';
 import { EncryptedFile, ChatMessage, ChatRoom, UserProfile } from './types';
 
-// --- Constants ---
-const USERS_FILE = 'registry_users';
+// --- Supabase Config ---
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://bbgoqhhitsvoauuizxqr.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_Nx-rxr3-n7LqPAxjbNX6WA_pHHopblF';
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const WELCOME_CHAT_ID = 'group_welcome';
 
-// Broadcast channel for multi-tab synchronization since OPFS doesn't fire storage events
-const dbChannel = new BroadcastChannel('obsidian_db_sync');
-
-// --- Crypto Utilities ---
-
+// --- Crypto Utilities (Client-Side Encryption) ---
+// We keep encryption client-side so the DB only sees garbage text.
 const ENC_ALGO = 'AES-GCM';
 const HASH_ALGO = 'SHA-256';
 
@@ -32,12 +33,7 @@ const base64ToBuffer = (base64: string): Uint8Array => {
   return bytes;
 };
 
-export const hashString = async (message: string): Promise<string> => {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest(HASH_ALGO, msgBuffer);
-  return bufferToBase64(new Uint8Array(hashBuffer));
-};
-
+// Key Derivation for Chat Rooms
 const getChatKey = async (chatId: string): Promise<CryptoKey> => {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -48,7 +44,7 @@ const getChatKey = async (chatId: string): Promise<CryptoKey> => {
     ['deriveKey']
   );
 
-  const fixedSalt = enc.encode('obsidian_vault_secure_salt_v9'); 
+  const fixedSalt = enc.encode('obsidian_vault_secure_salt_v10'); 
 
   return window.crypto.subtle.deriveKey(
     {
@@ -81,12 +77,12 @@ export const encryptMessage = async (text: string, chatId: string): Promise<Encr
   };
 };
 
-export const decryptMessage = async (encryptedFile: EncryptedFile, chatId: string): Promise<string> => {
-  const key = await getChatKey(chatId);
-  const iv = base64ToBuffer(encryptedFile.iv);
-  const data = base64ToBuffer(encryptedFile.data);
-
+export const decryptMessage = async (ivStr: string, dataStr: string, chatId: string): Promise<string> => {
   try {
+    const key = await getChatKey(chatId);
+    const iv = base64ToBuffer(ivStr);
+    const data = base64ToBuffer(dataStr);
+
     const decryptedContent = await window.crypto.subtle.decrypt(
       { name: ENC_ALGO, iv: iv },
       key,
@@ -94,14 +90,12 @@ export const decryptMessage = async (encryptedFile: EncryptedFile, chatId: strin
     );
     return new TextDecoder().decode(decryptedContent);
   } catch (e) {
-    console.error("Decryption failed for chat", chatId);
+    // console.error("Decryption failed", e);
     return "🔒 Encrypted Message";
   }
 };
 
-// --- Image Utils ---
-
-export const resizeImage = (base64Str: string, maxWidth = 100, maxHeight = 100): Promise<string> => {
+export const resizeImage = (base64Str: string, maxWidth = 150, maxHeight = 150): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.src = base64Str;
@@ -125,275 +119,331 @@ export const resizeImage = (base64Str: string, maxWidth = 100, maxHeight = 100):
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       ctx?.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+      resolve(canvas.toDataURL('image/jpeg', 0.6)); 
     };
+    img.onerror = () => resolve('');
   });
 };
 
-// --- File System Utilities (OPFS) ---
+// --- Auth Functions ---
 
-// Helper to access the Origin Private File System
-const getRoot = async () => navigator.storage.getDirectory();
+const getEmail = (username: string) => `${username}@obsidian.chat`;
 
-const readFile = async <T>(filename: string): Promise<T | null> => {
-  try {
-    const root = await getRoot();
-    // We treat everything as .txt files as requested
-    const fileHandle = await root.getFileHandle(`${filename}.txt`, { create: false });
-    const file = await fileHandle.getFile();
-    const text = await file.text();
-    return text ? JSON.parse(text) : null;
-  } catch (error) {
-    // File likely doesn't exist
-    return null;
+export const registerUser = async (username: string, password: string, avatarBase64: string): Promise<void> => {
+  const email = getEmail(username);
+  
+  // 1. Sign up with Supabase Auth
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (authError) throw new Error(authError.message);
+  if (!authData.user) throw new Error("Registration failed");
+
+  // 2. Create Profile
+  // Note: We wait for profile creation. If signUp requires email confirmation, this might run
+  // but login will fail later. We assume email confirmation is disabled or user confirms.
+  const avatar = await resizeImage(avatarBase64, 200, 200);
+  
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .insert([
+      { id: authData.user.id, username, avatar, updated_at: new Date() }
+    ]);
+
+  if (profileError) {
+    throw new Error("Could not create profile: " + profileError.message);
   }
 };
 
-const saveFile = async (filename: string, data: any) => {
-  try {
-    const root = await getRoot();
-    const fileHandle = await root.getFileHandle(`${filename}.txt`, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(data));
-    await writable.close();
-    
-    // Notify other tabs/components that data has changed
-    dbChannel.postMessage({ type: 'update', file: filename });
-  } catch (error) {
-    console.error(`Failed to save ${filename}:`, error);
-  }
+export const loginUser = async (username: string, password: string) => {
+  const email = getEmail(username);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+  if (error) throw new Error("Invalid credentials");
+  
+  // Fetch profile to ensure it exists
+  const profile = await getUserProfile(username);
+  return { user: data.user, profile };
 };
 
-// --- User Registry & Friends ---
-
-export const getRegisteredUsers = async (): Promise<string[]> => {
-  const users = await readFile<string[]>(USERS_FILE);
-  return users || [];
+export const logoutUser = async () => {
+  await supabase.auth.signOut();
 };
 
 export const getUserProfile = async (username: string): Promise<UserProfile | null> => {
-  return await readFile<UserProfile>(`user_${username}`);
-};
+  // Fetch basic profile
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('username', username)
+    .single();
 
-export const registerUser = async (username: string, password: string, avatarBase64: string): Promise<void> => {
-  const users = await getRegisteredUsers();
-  if (users.includes(username)) {
-    throw new Error("Username already registered");
-  }
+  if (error || !profile) return null;
+
+  // Fetch Friends Logic
+  // 1. Accepted Friends
+  const { data: friendships } = await supabase
+    .from('friend_requests')
+    .select('sender, receiver')
+    .eq('status', 'accepted')
+    .or(`sender.eq.${username},receiver.eq.${username}`);
+
+  const friends = (friendships || []).map((f: any) => 
+    f.sender === username ? f.receiver : f.sender
+  );
+
+  // 2. Incoming Requests
+  const { data: incoming } = await supabase
+    .from('friend_requests')
+    .select('sender')
+    .eq('receiver', username)
+    .eq('status', 'pending');
   
-  const passwordHash = await hashString(password);
-  const avatar = await resizeImage(avatarBase64, 200, 200);
+  const incomingRequests = (incoming || []).map((i: any) => i.sender);
 
-  const newUser: UserProfile = {
-    username,
-    passwordHash,
-    avatar,
-    friends: [],
-    incomingRequests: [],
-    outgoingRequests: []
+  // 3. Outgoing Requests
+  const { data: outgoing } = await supabase
+    .from('friend_requests')
+    .select('receiver')
+    .eq('sender', username)
+    .eq('status', 'pending');
+
+  const outgoingRequests = (outgoing || []).map((o: any) => o.receiver);
+
+  return {
+    id: profile.id,
+    username: profile.username,
+    avatar: profile.avatar,
+    friends,
+    incomingRequests,
+    outgoingRequests
   };
-
-  await saveFile(`user_${username}`, newUser);
-  users.push(username);
-  await saveFile(USERS_FILE, users);
 };
 
 export const updateAvatar = async (username: string, avatarBase64: string) => {
-  const profile = await getUserProfile(username);
-  if (!profile) return;
-  profile.avatar = await resizeImage(avatarBase64, 200, 200);
-  await saveFile(`user_${username}`, profile);
+  const avatar = await resizeImage(avatarBase64, 200, 200);
+  await supabase
+    .from('profiles')
+    .update({ avatar })
+    .eq('username', username);
 };
 
-export const verifyUser = async (username: string, password: string): Promise<boolean> => {
-  const record = await getUserProfile(username);
-  if (!record) return false;
-  const hash = await hashString(password);
-  return record.passwordHash === hash;
-};
-
-// Friend Logic
+// --- Friends ---
 
 export const sendFriendRequest = async (fromUser: string, toUser: string) => {
-  const sender = await getUserProfile(fromUser);
-  const receiver = await getUserProfile(toUser);
-  
-  if (!sender || !receiver) throw new Error("User not found in registry");
-  if (sender.friends.includes(toUser)) throw new Error("Already contacts");
-  if (sender.outgoingRequests.includes(toUser)) throw new Error("Request already sent");
-  if (receiver.incomingRequests.includes(fromUser)) throw new Error("They already sent you a request");
+  // Check if users exist
+  const { data: receiver } = await supabase.from('profiles').select('username').eq('username', toUser).single();
+  if (!receiver) throw new Error("User not found");
 
-  sender.outgoingRequests.push(toUser);
-  receiver.incomingRequests.push(fromUser);
+  // Check if request exists
+  const { data: existing } = await supabase
+    .from('friend_requests')
+    .select('*')
+    .or(`and(sender.eq.${fromUser},receiver.eq.${toUser}),and(sender.eq.${toUser},receiver.eq.${fromUser})`)
+    .single();
 
-  await saveFile(`user_${fromUser}`, sender);
-  await saveFile(`user_${toUser}`, receiver);
+  if (existing) {
+    if (existing.status === 'accepted') throw new Error("Already friends");
+    throw new Error("Request pending");
+  }
+
+  await supabase.from('friend_requests').insert({
+    sender: fromUser,
+    receiver: toUser,
+    status: 'pending'
+  });
 };
 
 export const acceptFriendRequest = async (currentUser: string, requester: string) => {
-  const me = await getUserProfile(currentUser);
-  const them = await getUserProfile(requester);
-  
-  if (!me || !them) return;
-
-  me.incomingRequests = me.incomingRequests.filter(u => u !== requester);
-  them.outgoingRequests = them.outgoingRequests.filter(u => u !== currentUser);
-
-  if (!me.friends.includes(requester)) me.friends.push(requester);
-  if (!them.friends.includes(currentUser)) them.friends.push(currentUser);
-
-  await saveFile(`user_${currentUser}`, me);
-  await saveFile(`user_${them}`, them);
+  await supabase
+    .from('friend_requests')
+    .update({ status: 'accepted' })
+    .eq('sender', requester)
+    .eq('receiver', currentUser);
 };
 
 export const rejectFriendRequest = async (currentUser: string, requester: string) => {
-  const me = await getUserProfile(currentUser);
-  const them = await getUserProfile(requester);
-  if (!me || !them) return;
-
-  me.incomingRequests = me.incomingRequests.filter(u => u !== requester);
-  them.outgoingRequests = them.outgoingRequests.filter(u => u !== currentUser);
-
-  await saveFile(`user_${currentUser}`, me);
-  await saveFile(`user_${them}`, them);
+  await supabase
+    .from('friend_requests')
+    .delete()
+    .eq('sender', requester)
+    .eq('receiver', currentUser);
 };
 
-// --- Chat Management ---
-
-export const getWelcomeChat = async (): Promise<ChatRoom> => {
-  const users = await getRegisteredUsers();
-  return {
-    id: WELCOME_CHAT_ID,
-    type: 'group',
-    name: 'Welcome Group',
-    participants: users, 
-    admins: [], 
-    avatar: '' 
-  };
-};
+// --- Chats ---
 
 export const getDMChatId = (userA: string, userB: string) => {
   const sorted = [userA, userB].sort();
   return `dm_${sorted[0]}_${sorted[1]}`;
 };
 
-export const createGroupChat = async (name: string, creator: string, members: string[]) => {
-  const id = `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const allParticipants = Array.from(new Set([creator, ...members]));
+export const getWelcomeChat = async (): Promise<ChatRoom> => {
+  // Ensure welcome group exists in DB
+  const { data } = await supabase.from('chats').select('*').eq('id', WELCOME_CHAT_ID).single();
   
-  const room: ChatRoom = {
-    id,
-    type: 'group',
-    name,
-    participants: allParticipants,
-    admins: [creator],
-    createdBy: creator,
-    avatar: '' 
-  };
-  
-  await saveFile(`room_${id}`, room);
-  await saveFile(`msgs_${id}`, []);
-  return room;
-};
-
-export const updateGroupMembers = async (chatId: string, newParticipants: string[]) => {
-  const room = await readFile<ChatRoom>(`room_${chatId}`);
-  if (!room) return;
-  room.participants = newParticipants;
-  await saveFile(`room_${chatId}`, room);
-};
-
-export const getMessages = async (chatId: string): Promise<ChatMessage[]> => {
-  const rawData = await readFile<any[]>(`msgs_${chatId}`);
-  if (!rawData || !Array.isArray(rawData)) return [];
-
-  const decryptedMessages: ChatMessage[] = [];
-  for (const item of rawData) {
-    try {
-      if (item.encrypted) {
-        const content = await decryptMessage(item.encrypted, chatId);
-        decryptedMessages.push({ ...item, content });
-      }
-    } catch (e) { }
-  }
-  return decryptedMessages;
-};
-
-export const sendMessage = async (chatId: string, sender: string, content: string) => {
-  const encrypted = await encryptMessage(content, chatId);
-  
-  const msgRecord = {
-    id: Date.now().toString() + Math.random().toString().slice(2, 8),
-    sender,
-    timestamp: Date.now(),
-    encrypted
-  };
-
-  const existing = await readFile<any[]>(`msgs_${chatId}`) || [];
-  existing.push(msgRecord);
-  await saveFile(`msgs_${chatId}`, existing);
-};
-
-export const getMyChats = async (username: string): Promise<ChatRoom[]> => {
-  const profile = await getUserProfile(username);
-  if (!profile) return [];
-
-  const chats: ChatRoom[] = [];
-
-  // 1. Welcome Group (Always available)
-  chats.push(await getWelcomeChat());
-
-  // 2. DMs with Friends
-  for (const friend of profile.friends) {
-    const chatId = getDMChatId(username, friend);
-    chats.push({
-      id: chatId,
-      type: 'dm',
-      name: friend, 
-      participants: [username, friend]
+  if (!data) {
+    // Create it if it doesn't exist (First run)
+    await supabase.from('chats').insert({
+      id: WELCOME_CHAT_ID,
+      type: 'group',
+      name: 'Welcome Group',
+      participants: [],
+      admins: []
     });
   }
 
-  // 3. Custom Groups
-  // Since we can't iterate LocalStorage keys anymore, we need to iterate the directory
-  try {
-    const root = await getRoot();
-    // @ts-ignore - values() iterator exists on FileSystemDirectoryHandle
-    for await (const handle of root.values()) {
-       if (handle.kind === 'file' && handle.name.startsWith('room_') && handle.name.endsWith('.txt')) {
-         const file = await (handle as FileSystemFileHandle).getFile();
-         const text = await file.text();
-         try {
-           const room: ChatRoom = JSON.parse(text);
-           if (room.participants.includes(username)) {
-             chats.push(room);
-           }
-         } catch(e) {}
-       }
-    }
-  } catch (e) {
-    console.error("Error scanning groups", e);
+  // Get all users for the welcome group participant list
+  const { data: users } = await supabase.from('profiles').select('username');
+  const allUsernames = users ? users.map((u: any) => u.username) : [];
+
+  return {
+    id: WELCOME_CHAT_ID,
+    type: 'group',
+    name: 'Welcome Group',
+    participants: allUsernames,
+    admins: [],
+    avatar: ''
+  };
+};
+
+export const createGroupChat = async (name: string, creator: string, members: string[]) => {
+  const id = `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const participants = Array.from(new Set([creator, ...members]));
+  
+  const room = {
+    id,
+    type: 'group',
+    name,
+    participants,
+    admins: [creator],
+    avatar: ''
+  };
+
+  const { error } = await supabase.from('chats').insert(room);
+  if (error) throw error;
+  return room as ChatRoom;
+};
+
+export const getMyChats = async (username: string): Promise<ChatRoom[]> => {
+  const chats: ChatRoom[] = [];
+
+  // 1. Welcome Group
+  chats.push(await getWelcomeChat());
+
+  // 2. Fetch DMs and Groups where I am a participant
+  // Note: Supabase array filtering is tricky. 
+  // We'll simplisticly fetch chats and filter in memory for this demo
+  const { data: remoteChats } = await supabase
+    .from('chats')
+    .select('*')
+    .contains('participants', [username]);
+
+  if (remoteChats) {
+    remoteChats.forEach((c: any) => {
+      if (c.id !== WELCOME_CHAT_ID) {
+        chats.push(c as ChatRoom);
+      }
+    });
   }
 
-  // 4. Hydrate Last Message (Decrypting preview)
+  // 3. Hydrate Last Message
   const hydratedChats = await Promise.all(chats.map(async (chat) => {
-    const rawMsgs = await readFile<any[]>(`msgs_${chat.id}`);
-    if (rawMsgs && Array.isArray(rawMsgs) && rawMsgs.length > 0) {
-      const lastRaw = rawMsgs[rawMsgs.length - 1];
-      try {
-        const content = await decryptMessage(lastRaw.encrypted, chat.id);
-        return { ...chat, lastMessage: { ...lastRaw, content } };
-      } catch (e) {
-        return chat; // Failed to decrypt preview, return basic chat info
-      }
+    const { data: msgs } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('chat_id', chat.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (msgs && msgs.length > 0) {
+      const lastRaw = msgs[0];
+      const content = await decryptMessage(lastRaw.iv, lastRaw.content, chat.id);
+      return { 
+        ...chat, 
+        lastMessage: { 
+          id: lastRaw.id,
+          sender: lastRaw.sender,
+          content,
+          timestamp: new Date(lastRaw.created_at).getTime()
+        } 
+      };
     }
     return chat;
   }));
 
-  // 5. Sort by Timestamp Descending (Newest first)
   return hydratedChats.sort((a, b) => {
     const tA = a.lastMessage?.timestamp || 0;
     const tB = b.lastMessage?.timestamp || 0;
     return tB - tA;
   });
+};
+
+export const getMessages = async (chatId: string): Promise<ChatMessage[]> => {
+  const { data } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('chat_id', chatId)
+    .order('created_at', { ascending: true });
+
+  if (!data) return [];
+
+  const decrypted: ChatMessage[] = [];
+  for (const m of data) {
+    const content = await decryptMessage(m.iv, m.content, chatId);
+    decrypted.push({
+      id: m.id,
+      sender: m.sender,
+      content,
+      timestamp: new Date(m.created_at).getTime()
+    });
+  }
+  return decrypted;
+};
+
+export const sendMessage = async (chatId: string, sender: string, content: string) => {
+  const encrypted = await encryptMessage(content, chatId);
+  
+  // Ensure chat exists for DMs (Lazy creation)
+  if (chatId.startsWith('dm_')) {
+    const { data } = await supabase.from('chats').select('id').eq('id', chatId).single();
+    if (!data) {
+      const parts = chatId.replace('dm_', '').split('_');
+      await supabase.from('chats').insert({
+        id: chatId,
+        type: 'dm',
+        name: chatId,
+        participants: parts,
+        admins: []
+      });
+    }
+  }
+
+  await supabase.from('messages').insert({
+    chat_id: chatId,
+    sender,
+    content: encrypted.data,
+    iv: encrypted.iv
+  });
+};
+
+// --- Realtime Subscription ---
+export const subscribeToChat = (chatId: string, onMessage: () => void) => {
+  const channel = supabase
+    .channel(`chat:${chatId}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
+      () => {
+        onMessage();
+      }
+    )
+    .subscribe();
+    
+  return () => {
+    supabase.removeChannel(channel);
+  };
 };

@@ -1,8 +1,8 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
 import { ShieldCheck, Lock, User as UserIcon, Zap, Camera, Upload } from 'lucide-react';
-import { registerUser, verifyUser, getUserProfile } from '../utils';
+import { registerUser, loginUser, getUserProfile } from '../utils';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -42,49 +42,50 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     try {
       if (isRegistering) {
         await registerUser(username, password, avatar);
+        // Auto login after register
+        const { profile } = await loginUser(username, password);
         localStorage.setItem('obsidian_current_user', username);
-        onLogin({ username, isAuthenticated: true, avatar });
+        if (profile) onLogin({ username, isAuthenticated: true, avatar: profile.avatar });
       } else {
-        const isValid = await verifyUser(username, password);
-        if (isValid) {
-          const profile = await getUserProfile(username);
-          localStorage.setItem('obsidian_current_user', username);
-          onLogin({ username, isAuthenticated: true, avatar: profile?.avatar });
+        const { profile } = await loginUser(username, password);
+        localStorage.setItem('obsidian_current_user', username);
+        if (profile) {
+           onLogin({ username, isAuthenticated: true, avatar: profile.avatar });
         } else {
-          throw new Error("Invalid credentials");
+           throw new Error("Profile not found");
         }
       }
     } catch (err: any) {
-      setError(err.message || "Authentication failed");
+      setError(err.message || "Authentication failed. Check your connection.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#020617] p-6 relative overflow-hidden font-sans">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#000000] p-6 relative overflow-hidden font-sans">
       {/* Background Decor */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-950/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-950/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-purple-900/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="w-full max-w-md p-8 rounded-3xl bg-slate-950/60 backdrop-blur-3xl border border-white/5 shadow-2xl shadow-black relative z-10">
+      <div className="w-full max-w-md p-8 rounded-3xl bg-[#0a0a0a] border border-white/5 shadow-2xl shadow-black relative z-10 animate-in fade-in zoom-in duration-500">
         
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-800 to-indigo-900 flex items-center justify-center shadow-lg shadow-purple-900/50 mb-4">
-            <Zap className="w-7 h-7 text-purple-200" />
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-900 to-indigo-950 flex items-center justify-center shadow-lg shadow-purple-900/30 mb-5 border border-white/5">
+            <Zap className="w-8 h-8 text-purple-200" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Obsidian</h1>
-          <p className="text-slate-500 text-xs mt-1 tracking-wider uppercase">Encrypted Messenger</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Obsidian</h1>
+          <p className="text-slate-500 text-xs mt-1 tracking-wider uppercase font-medium">Cloud Synced Vault</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 rounded-lg bg-red-950/30 border border-red-500/20 text-red-300 text-xs font-medium text-center">
+          <div className="mb-6 p-4 rounded-xl bg-red-950/20 border border-red-500/20 text-red-300 text-xs font-medium text-center leading-relaxed">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          
+            
           {isRegistering && (
             <div className="flex flex-col items-center justify-center mb-6">
                <div 
@@ -100,7 +101,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                    <Upload className="w-6 h-6 text-white" />
                  </div>
                </div>
-               <span className="text-xs text-slate-500 mt-2">Set Profile Picture</span>
+               <span className="text-xs text-slate-500 mt-2 font-medium">Identity Image</span>
                <input 
                  type="file" 
                  ref={fileInputRef} 
@@ -156,16 +157,17 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               </>
             )}
           </button>
+          
+          <div className="pt-4 text-center">
+            <button
+              type="button"
+              onClick={() => { setIsRegistering(!isRegistering); setError(''); setAvatar(''); }}
+              className="text-slate-500 hover:text-purple-300 text-xs font-medium transition-colors"
+            >
+              {isRegistering ? 'Already established? Log In' : 'Need an identity? Register'}
+            </button>
+          </div>
         </form>
-
-        <div className="mt-8 pt-6 border-t border-white/5 text-center">
-          <button
-            onClick={() => { setIsRegistering(!isRegistering); setError(''); setAvatar(''); }}
-            className="text-slate-500 hover:text-purple-300 text-xs font-medium transition-colors"
-          >
-            {isRegistering ? 'Already established? Log In' : 'Need an identity? Register'}
-          </button>
-        </div>
       </div>
     </div>
   );

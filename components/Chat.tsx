@@ -4,7 +4,7 @@ import { User, ChatRoom, ChatMessage, UserProfile } from '../types';
 import { 
   getMessages, sendMessage, getMyChats, getWelcomeChat,
   getUserProfile, sendFriendRequest, acceptFriendRequest, rejectFriendRequest,
-  createGroupChat, updateAvatar
+  createGroupChat, updateAvatar, subscribeToChat
 } from '../utils';
 import { 
   Send, LogOut, MessageSquare, Users, Hash, Lock, 
@@ -40,7 +40,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [chatParticipants, setChatParticipants] = useState<UserProfile[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollingRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Helpers ---
@@ -51,28 +50,15 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
     setIsChatsLoading(false);
   };
 
-  const refreshData = async () => {
+  const refreshMessages = async () => {
     if (!activeChat) return;
+    const msgs = await getMessages(activeChat.id);
+    setMessages(msgs);
+  };
 
-    // Refresh Chats
-    await fetchChats();
-
-    // Refresh Profile
+  const refreshProfile = async () => {
     const profile = await getUserProfile(user.username);
     setMyProfile(profile);
-
-    // Refresh Active Chat Messages
-    const msgs = await getMessages(activeChat.id);
-    setMessages(prev => (prev.length !== msgs.length || (msgs.length > 0 && prev.length > 0 && msgs[msgs.length-1].id !== prev[prev.length-1].id)) ? msgs : prev);
-
-    // Refresh Chat Participants Data
-    if (infoPanelOpen || activeChat.type === 'group') {
-      const currentRoom = myChats.find(c => c.id === activeChat.id) || activeChat;
-      const participantsData = await Promise.all(
-        currentRoom.participants.map(p => getUserProfile(p))
-      );
-      setChatParticipants(participantsData.filter(Boolean) as UserProfile[]);
-    }
   };
 
   // Initial Load
@@ -81,24 +67,39 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       const welcome = await getWelcomeChat();
       setActiveChat(welcome);
       await fetchChats();
-      const profile = await getUserProfile(user.username);
-      setMyProfile(profile);
+      await refreshProfile();
     };
     init();
   }, [user.username]);
 
-  // Polling
+  // Realtime Subscription for Active Chat
   useEffect(() => {
     if (activeChat) {
-      refreshData();
-      pollingRef.current = window.setInterval(refreshData, 2000);
+      refreshMessages(); // Initial fetch
+      
+      // Subscribe to Realtime Updates
+      const unsubscribe = subscribeToChat(activeChat.id, () => {
+        refreshMessages();
+        fetchChats(); // Update sidebar last message
+      });
+
+      // Load participant details
+      const loadParticipants = async () => {
+        const currentRoom = myChats.find(c => c.id === activeChat.id) || activeChat;
+        const participantsData = await Promise.all(
+          currentRoom.participants.map(p => getUserProfile(p))
+        );
+        setChatParticipants(participantsData.filter(Boolean) as UserProfile[]);
+      };
+      loadParticipants();
+
       return () => {
-        if (pollingRef.current) clearInterval(pollingRef.current);
+        unsubscribe();
       };
     }
-  }, [activeChat?.id, user.username, infoPanelOpen]);
+  }, [activeChat?.id]);
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, activeChat?.id]);
@@ -108,9 +109,10 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !activeChat) return;
+    
+    // Optimistic UI update could go here, but with Supabase Realtime it's fast enough usually
     await sendMessage(activeChat.id, user.username, inputText);
     setInputText('');
-    refreshData(); // Immediate refresh
   };
 
   const handleSendFriendRequest = async (e: React.FormEvent) => {
@@ -119,7 +121,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       await sendFriendRequest(user.username, friendInput.toLowerCase());
       alert("Request sent!");
       setFriendInput('');
-      await refreshData();
+      await refreshProfile();
     } catch (err: any) {
       alert(err.message);
     }
@@ -127,22 +129,28 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
 
   const handleAcceptRequest = async (requester: string) => {
     await acceptFriendRequest(user.username, requester);
-    await refreshData();
+    await refreshProfile();
+    await fetchChats();
   };
 
   const handleRejectRequest = async (requester: string) => {
     await rejectFriendRequest(user.username, requester);
-    await refreshData();
+    await refreshProfile();
   };
 
   const handleCreateGroup = async () => {
     if (!groupNameInput) return;
-    await createGroupChat(groupNameInput, user.username, selectedGroupMembers);
-    setShowCreateGroup(false);
-    setGroupNameInput('');
-    setSelectedGroupMembers([]);
-    await fetchChats();
-    setActiveTab('chats');
+    try {
+      const newGroup = await createGroupChat(groupNameInput, user.username, selectedGroupMembers);
+      setShowCreateGroup(false);
+      setGroupNameInput('');
+      setSelectedGroupMembers([]);
+      await fetchChats();
+      setActiveChat(newGroup);
+      setActiveTab('chats');
+    } catch (e: any) {
+      alert("Failed to create group: " + e.message);
+    }
   };
 
   const handleUpdateAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,7 +159,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       const reader = new FileReader();
       reader.onloadend = async () => {
         await updateAvatar(user.username, reader.result as string);
-        await refreshData();
+        await refreshProfile();
       };
       reader.readAsDataURL(file);
     }
@@ -216,7 +224,23 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                   onClick={() => {
                      // Find chat
                      const chat = myChats.find(c => c.type === 'dm' && c.participants.includes(friend));
-                     if(chat) { setActiveChat(chat); setActiveTab('chats'); setSidebarOpen(false); }
+                     if(chat) { 
+                       setActiveChat(chat); 
+                       setActiveTab('chats'); 
+                       setSidebarOpen(false); 
+                     } else {
+                       // Create temp object for DM if it doesn't exist yet
+                       const sorted = [user.username, friend].sort();
+                       const newDmId = `dm_${sorted[0]}_${sorted[1]}`;
+                       setActiveChat({
+                         id: newDmId,
+                         type: 'dm',
+                         name: friend,
+                         participants: [user.username, friend]
+                       });
+                       setActiveTab('chats');
+                       setSidebarOpen(false);
+                     }
                   }}>
                   <div className="w-9 h-9 rounded-full bg-slate-900 border border-white/5 flex items-center justify-center overflow-hidden group-hover:border-purple-500/30 transition-colors">
                     <div className="text-xs font-bold text-slate-400">{friend[0].toUpperCase()}</div>
@@ -343,7 +367,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
 
   // If no chat loaded yet (rare, but possible during first async tick)
   if (!activeChat) {
-    return <div className="h-screen bg-black flex items-center justify-center text-slate-500">Loading Secure Vault...</div>;
+    return <div className="h-screen bg-black flex items-center justify-center text-slate-500">Syncing with Secure Cloud...</div>;
   }
 
   return (
@@ -362,7 +386,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
           </div>
           <div className="flex-1 min-w-0">
              <div className="font-bold text-white text-sm truncate">{user.username}</div>
-             <div className="text-[10px] text-purple-500 font-medium tracking-wide">SECURE VAULT</div>
+             <div className="text-[10px] text-purple-500 font-medium tracking-wide">CLOUD CONNECTED</div>
           </div>
           <div className="flex gap-1">
              <button onClick={() => setActiveTab('chats')} className={`p-2 rounded-lg transition-colors ${activeTab === 'chats' ? 'text-purple-400 bg-white/5' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}>

@@ -1,5 +1,5 @@
 {
   "name": "Obsidian Vault Chat",
-  "description": "A secure, encrypted chat application with a sleek black-purple aesthetic. Data is stored locally in simulated encrypted text files.",
+  "description": "A secure, encrypted chat application powered by Supabase. Features real-time messaging, groups, and friend management.",
   "requestFramePermissions": []
 }

@@ -3,12 +3,13 @@ export interface User {
   username: string;
   isAuthenticated: boolean;
   avatar?: string; // Base64 string
+  id?: string; // Supabase UUID
 }
 
 export interface UserProfile {
+  id: string;
   username: string;
-  passwordHash: string;
-  avatar: string;
+  avatar: string; // Base64 string
   friends: string[];
   incomingRequests: string[];
   outgoingRequests: string[];
@@ -22,8 +23,11 @@ export interface Message {
 export interface ChatMessage {
   id: string;
   sender: string;
-  content: string;
+  content: string; // Decrypted content
   timestamp: number;
+  // Supabase specific
+  chat_id?: string;
+  iv?: string; // needed for decryption if stored raw
 }
 
 export interface ChatRoom {
