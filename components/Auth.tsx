@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
 import { ShieldCheck, Lock, User as UserIcon, Zap, Camera, Upload } from 'lucide-react';
@@ -42,10 +41,22 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     try {
       if (isRegistering) {
         await registerUser(username, password, avatar);
-        // Auto login after register
-        const { profile } = await loginUser(username, password);
-        localStorage.setItem('obsidian_current_user', username);
-        if (profile) onLogin({ username, isAuthenticated: true, avatar: profile.avatar });
+        
+        // Attempt Auto-Login
+        try {
+          const { profile } = await loginUser(username, password);
+          localStorage.setItem('obsidian_current_user', username);
+          if (profile) onLogin({ username, isAuthenticated: true, avatar: profile.avatar });
+        } catch (loginErr: any) {
+           // If auto-login fails, check if it's because email is not confirmed
+           if (loginErr.message.toLowerCase().includes("email not confirmed")) {
+             setError("Success! Please check your email to verify your identity before logging in.");
+             setIsRegistering(false); // Switch to login mode
+             return;
+           }
+           throw loginErr; // Throw other errors
+        }
+
       } else {
         const { profile } = await loginUser(username, password);
         localStorage.setItem('obsidian_current_user', username);
@@ -79,7 +90,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-950/20 border border-red-500/20 text-red-300 text-xs font-medium text-center leading-relaxed">
+          <div className={`mb-6 p-4 rounded-xl text-xs font-medium text-center leading-relaxed border ${error.includes("Success") ? 'bg-green-950/20 border-green-500/20 text-green-300' : 'bg-red-950/20 border-red-500/20 text-red-300'}`}>
             {error}
           </div>
         )}
@@ -149,7 +160,10 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             className="w-full bg-purple-900 hover:bg-purple-800 text-purple-100 font-semibold py-4 rounded-xl shadow-lg shadow-purple-900/20 transition-all duration-200 mt-2 flex items-center justify-center gap-2"
           >
             {loading ? (
-              <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              <>
+                 <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                 <span className="text-sm">Connecting to Vault...</span>
+              </>
             ) : (
               <>
                 {isRegistering ? 'Initialize Identity' : 'Decrypt Session'}

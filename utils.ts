@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { EncryptedFile, ChatMessage, ChatRoom, UserProfile } from './types';
 
 // --- Supabase Config ---
+// Using the project URL provided. The key should be the 'anon' public key.
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://bbgoqhhitsvoauuizxqr.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_Nx-rxr3-n7LqPAxjbNX6WA_pHHopblF';
 
@@ -10,7 +11,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const WELCOME_CHAT_ID = 'group_welcome';
 
 // --- Crypto Utilities (Client-Side Encryption) ---
-// We keep encryption client-side so the DB only sees garbage text.
 const ENC_ALGO = 'AES-GCM';
 const HASH_ALGO = 'SHA-256';
 
@@ -90,7 +90,6 @@ export const decryptMessage = async (ivStr: string, dataStr: string, chatId: str
     );
     return new TextDecoder().decode(decryptedContent);
   } catch (e) {
-    // console.error("Decryption failed", e);
     return "🔒 Encrypted Message";
   }
 };
@@ -139,11 +138,9 @@ export const registerUser = async (username: string, password: string, avatarBas
   });
 
   if (authError) throw new Error(authError.message);
-  if (!authData.user) throw new Error("Registration failed");
+  if (!authData.user) throw new Error("Registration failed. Please try again.");
 
   // 2. Create Profile
-  // Note: We wait for profile creation. If signUp requires email confirmation, this might run
-  // but login will fail later. We assume email confirmation is disabled or user confirms.
   const avatar = await resizeImage(avatarBase64, 200, 200);
   
   const { error: profileError } = await supabase
@@ -153,6 +150,7 @@ export const registerUser = async (username: string, password: string, avatarBas
     ]);
 
   if (profileError) {
+    // If profile creation fails (e.g. duplicate username), we should probably cleanup or warn
     throw new Error("Could not create profile: " + profileError.message);
   }
 };
@@ -163,10 +161,19 @@ export const loginUser = async (username: string, password: string) => {
     email,
     password
   });
-  if (error) throw new Error("Invalid credentials");
+  
+  if (error) {
+    // Expose the specific error (e.g. "Email not confirmed")
+    throw new Error(error.message);
+  }
   
   // Fetch profile to ensure it exists
   const profile = await getUserProfile(username);
+  if (!profile) {
+    // Edge case: User exists in Auth but not in Profiles table
+    throw new Error("Identity found but profile is missing. Database might be incomplete.");
+  }
+
   return { user: data.user, profile };
 };
 
@@ -175,53 +182,55 @@ export const logoutUser = async () => {
 };
 
 export const getUserProfile = async (username: string): Promise<UserProfile | null> => {
-  // Fetch basic profile
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('username', username)
-    .single();
+  try {
+    // Fetch basic profile
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', username)
+      .single();
 
-  if (error || !profile) return null;
+    if (error || !profile) return null;
 
-  // Fetch Friends Logic
-  // 1. Accepted Friends
-  const { data: friendships } = await supabase
-    .from('friend_requests')
-    .select('sender, receiver')
-    .eq('status', 'accepted')
-    .or(`sender.eq.${username},receiver.eq.${username}`);
+    // Fetch Friends Logic
+    const { data: friendships } = await supabase
+      .from('friend_requests')
+      .select('sender, receiver')
+      .eq('status', 'accepted')
+      .or(`sender.eq.${username},receiver.eq.${username}`);
 
-  const friends = (friendships || []).map((f: any) => 
-    f.sender === username ? f.receiver : f.sender
-  );
+    const friends = (friendships || []).map((f: any) => 
+      f.sender === username ? f.receiver : f.sender
+    );
 
-  // 2. Incoming Requests
-  const { data: incoming } = await supabase
-    .from('friend_requests')
-    .select('sender')
-    .eq('receiver', username)
-    .eq('status', 'pending');
-  
-  const incomingRequests = (incoming || []).map((i: any) => i.sender);
+    const { data: incoming } = await supabase
+      .from('friend_requests')
+      .select('sender')
+      .eq('receiver', username)
+      .eq('status', 'pending');
+    
+    const incomingRequests = (incoming || []).map((i: any) => i.sender);
 
-  // 3. Outgoing Requests
-  const { data: outgoing } = await supabase
-    .from('friend_requests')
-    .select('receiver')
-    .eq('sender', username)
-    .eq('status', 'pending');
+    const { data: outgoing } = await supabase
+      .from('friend_requests')
+      .select('receiver')
+      .eq('sender', username)
+      .eq('status', 'pending');
 
-  const outgoingRequests = (outgoing || []).map((o: any) => o.receiver);
+    const outgoingRequests = (outgoing || []).map((o: any) => o.receiver);
 
-  return {
-    id: profile.id,
-    username: profile.username,
-    avatar: profile.avatar,
-    friends,
-    incomingRequests,
-    outgoingRequests
-  };
+    return {
+      id: profile.id,
+      username: profile.username,
+      avatar: profile.avatar,
+      friends,
+      incomingRequests,
+      outgoingRequests
+    };
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    return null;
+  }
 };
 
 export const updateAvatar = async (username: string, avatarBase64: string) => {
@@ -235,11 +244,9 @@ export const updateAvatar = async (username: string, avatarBase64: string) => {
 // --- Friends ---
 
 export const sendFriendRequest = async (fromUser: string, toUser: string) => {
-  // Check if users exist
   const { data: receiver } = await supabase.from('profiles').select('username').eq('username', toUser).single();
   if (!receiver) throw new Error("User not found");
 
-  // Check if request exists
   const { data: existing } = await supabase
     .from('friend_requests')
     .select('*')
@@ -282,32 +289,50 @@ export const getDMChatId = (userA: string, userB: string) => {
 };
 
 export const getWelcomeChat = async (): Promise<ChatRoom> => {
-  // Ensure welcome group exists in DB
-  const { data } = await supabase.from('chats').select('*').eq('id', WELCOME_CHAT_ID).single();
-  
-  if (!data) {
-    // Create it if it doesn't exist (First run)
-    await supabase.from('chats').insert({
+  try {
+    // Ensure welcome group exists in DB
+    const { data, error } = await supabase.from('chats').select('*').eq('id', WELCOME_CHAT_ID).single();
+    
+    if (error && error.code === '42P01') {
+       // Table does not exist
+       throw new Error("System Tables Missing. Please run the SQL setup script in Supabase.");
+    }
+
+    if (!data) {
+      // Create it if it doesn't exist (First run)
+      await supabase.from('chats').insert({
+        id: WELCOME_CHAT_ID,
+        type: 'group',
+        name: 'Welcome Group',
+        participants: [],
+        admins: []
+      });
+    }
+
+    // Get all users for the welcome group participant list
+    const { data: users } = await supabase.from('profiles').select('username');
+    const allUsernames = users ? users.map((u: any) => u.username) : [];
+
+    return {
       id: WELCOME_CHAT_ID,
       type: 'group',
       name: 'Welcome Group',
+      participants: allUsernames,
+      admins: [],
+      avatar: ''
+    };
+  } catch (err: any) {
+    console.error("Failed to load welcome chat:", err);
+    // Return a dummy offline chat to prevent crash
+    return {
+      id: WELCOME_CHAT_ID,
+      type: 'group',
+      name: 'Welcome Group (Offline)',
       participants: [],
-      admins: []
-    });
+      admins: [],
+      avatar: ''
+    };
   }
-
-  // Get all users for the welcome group participant list
-  const { data: users } = await supabase.from('profiles').select('username');
-  const allUsernames = users ? users.map((u: any) => u.username) : [];
-
-  return {
-    id: WELCOME_CHAT_ID,
-    type: 'group',
-    name: 'Welcome Group',
-    participants: allUsernames,
-    admins: [],
-    avatar: ''
-  };
 };
 
 export const createGroupChat = async (name: string, creator: string, members: string[]) => {
@@ -334,9 +359,7 @@ export const getMyChats = async (username: string): Promise<ChatRoom[]> => {
   // 1. Welcome Group
   chats.push(await getWelcomeChat());
 
-  // 2. Fetch DMs and Groups where I am a participant
-  // Note: Supabase array filtering is tricky. 
-  // We'll simplisticly fetch chats and filter in memory for this demo
+  // 2. Fetch DMs and Groups
   const { data: remoteChats } = await supabase
     .from('chats')
     .select('*')
