@@ -10,19 +10,27 @@ export interface UserProfile {
   id: string;
   username: string;
   avatar: string; // Base64 string
+  banner?: string; // Base64 string
+  bio?: string;
+  public_email?: string;
+  show_email?: boolean;
   friends: string[];
   incomingRequests: string[];
   outgoingRequests: string[];
 }
 
 export interface Attachment {
-  type: 'image';
+  type: 'image' | 'file';
   url: string; // Base64 data
+  name?: string;
+  size?: number;
+  mimeType?: string;
 }
 
 export interface MessageContent {
   text: string;
   attachments?: Attachment[];
+  reactions?: Record<string, string[]>; // emoji -> list of usernames
 }
 
 export interface Message {

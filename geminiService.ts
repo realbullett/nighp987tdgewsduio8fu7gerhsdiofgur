@@ -1,17 +1,12 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Message } from "./types";
 
 // Initialize Gemini Client
-// Assumption: process.env.API_KEY is available in the build environment.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const sendMessageToGemini = async (history: Message[], newMessage: string): Promise<string> => {
   try {
-    // Transform our internal message format to the API format if needed,
-    // but typically we can just use a fresh model call with history context if we were managing state manually.
-    // For simplicity and robustness with the new SDK, we'll use the Chat helper.
-    
-    // Construct history for the chat
     const chatHistory = history.map(msg => ({
       role: msg.role,
       parts: [{ text: msg.content }]
@@ -32,4 +27,16 @@ export const sendMessageToGemini = async (history: Message[], newMessage: string
     console.error("Gemini API Error:", error);
     return "Connection to the neural link failed. Please try again.";
   }
+};
+
+export const getAuthHelp = async (field: string): Promise<string> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Write a 1-sentence poetic noir tip about why '${field}' is important for privacy in a secure chat app.`,
+        });
+        return response.text.trim();
+    } catch (e) {
+        return "Secure your identity, shadow walker.";
+    }
 };
