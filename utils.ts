@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { EncryptedFile, ChatMessage, ChatRoom, UserProfile, User, MessageContent } from './types';
 
 // --- Supabase Config ---
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://bbgoqhhitsvoauuizxqr.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_Nx-rxr3-n7LqPAxjbNX6WA_pHHopblF';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://qesejuvizzzkwqedeqwk.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_LQrnUGOne0SsfZs9gSJeXA_6GDAcGU6';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
