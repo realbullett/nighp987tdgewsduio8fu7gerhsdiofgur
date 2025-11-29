@@ -5,7 +5,13 @@ import { EncryptedFile, ChatMessage, ChatRoom, UserProfile, User, MessageContent
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://qesejuvizzzkwqedeqwk.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_LQrnUGOne0SsfZs9gSJeXA_6GDAcGU6';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    realtime: {
+        params: {
+            eventsPerSecond: 10
+        }
+    }
+});
 
 const WELCOME_CHAT_ID = 'group_official_night';
 const TENOR_KEY = 'AIzaSyBADzP48occrT2Id2u61yhMX-FR8pRMB40';
@@ -475,6 +481,13 @@ export const createGroupChat = async (name: string, description: string, creator
   return room as ChatRoom;
 };
 
+// Helper to fetch single chat details (used for real-time when chat is missing from list)
+export const fetchChatDetails = async (chatId: string): Promise<ChatRoom | null> => {
+    const { data } = await supabase.from('chats').select('*').eq('id', chatId).single();
+    if (!data) return null;
+    return data as ChatRoom;
+};
+
 export const getMyChats = async (username: string): Promise<ChatRoom[]> => {
   const { data } = await supabase.from('chats').select('*').contains('participants', [username]);
   const chats = data ? data.map((c:any) => c as ChatRoom) : [];
@@ -628,7 +641,7 @@ export const addMessageReaction = async (chatId: string, messageId: string, emoj
 
 export const subscribeToGlobalMessages = (onEvent: (payload: any) => void) => {
     // Listen to ALL public message events (*). This handles Inserts, Updates, Deletes globally.
-    // This removes the need to subscribe/unsubscribe when switching chats.
+    // The 'global-messages' channel name is shared.
     const channel = supabase.channel('global-messages')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, onEvent)
         .subscribe();
