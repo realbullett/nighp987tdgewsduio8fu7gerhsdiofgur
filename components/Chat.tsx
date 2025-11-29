@@ -359,81 +359,107 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
 
   // SINGLE GLOBAL REALTIME SUBSCRIPTION
   useEffect(() => {
-    const unsub = subscribeToGlobalMessages(async (payload) => {
-       const eventType = payload.eventType;
-       const newRecord = payload.new;
-       const oldRecord = payload.old;
+    const unsub = subscribeToGlobalMessages(
+      // 1. Handle Messages Table Events
+      async (payload) => {
+         const eventType = payload.eventType;
+         const newRecord = payload.new;
+         const oldRecord = payload.old;
 
-       if (eventType === 'INSERT') {
-          const chatId = newRecord.chat_id;
-          
-          // --- ROBUST CHAT CHECK ---
-          // Check if this chat is known to us. If not, fetch it.
-          // This fixes the "wait for refresh" issue for new conversations.
-          let chatExists = myChatsRef.current.some(c => c.id === chatId);
-          let knownParticipants = chatExists ? [] : null;
+         if (eventType === 'INSERT') {
+            const chatId = newRecord.chat_id;
+            
+            // --- ROBUST CHAT CHECK ---
+            let chatExists = myChatsRef.current.some(c => c.id === chatId);
 
-          if (!chatExists) {
-              // Unknown Chat (New DM or Group). Fetch it immediately.
-              const chatData = await fetchChatDetails(chatId);
-              if (chatData && chatData.participants.includes(user.username)) {
-                  // It's a valid chat for us.
-                  chatExists = true;
-                  // Pre-fetch participant profiles
-                  getProfiles(chatData.participants).then(p => setProfilesCache(prev => ({...prev, ...p})));
-                  
-                  // Construct a temporary ChatRoom object to add to state
-                  const newChatRoom: ChatRoom = { ...chatData, lastMessage: undefined };
-                  // Add to local state so we can show it
-                  setMyChats(prev => [newChatRoom, ...prev]);
-                  // Also update ref so subsequent logic works in this same tick
-                  myChatsRef.current = [newChatRoom, ...myChatsRef.current];
-              }
-          }
+            if (!chatExists) {
+                // Unknown Chat (New DM or Group). Fetch it immediately.
+                const chatData = await fetchChatDetails(chatId);
+                if (chatData && chatData.participants.includes(user.username)) {
+                    chatExists = true;
+                    getProfiles(chatData.participants).then(p => setProfilesCache(prev => ({...prev, ...p})));
+                    const newChatRoom: ChatRoom = { ...chatData, lastMessage: undefined };
+                    setMyChats(prev => [newChatRoom, ...prev]);
+                    myChatsRef.current = [newChatRoom, ...myChatsRef.current];
+                }
+            }
 
-          if (chatExists) {
-             let contentStr = '';
-             try { contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId); } catch(e) { console.error("Realtime Decrypt Error", e); }
-             const newMessageObj: ChatMessage = { id: newRecord.id, sender: newRecord.sender, content: contentStr, timestamp: new Date(newRecord.created_at).getTime() };
+            if (chatExists) {
+               let contentStr = '';
+               try { contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId); } catch(e) { console.error("Realtime Decrypt Error", e); }
+               const newMessageObj: ChatMessage = { id: newRecord.id, sender: newRecord.sender, content: contentStr, timestamp: new Date(newRecord.created_at).getTime() };
 
-             // Update Active Chat Messages
+               // Update Active Chat Messages
+               if (activeChatIdRef.current === chatId) {
+                   // Using functional state update to ensure we don't depend on stale closure
+                   setMessages(prev => {
+                        // Avoid duplicates from optimistic updates
+                        const exists = prev.some(m => m.id === newMessageObj.id);
+                        if (exists) return prev;
+                        return [...prev, newMessageObj];
+                   });
+               } else {
+                  setUnreadCounts(prev => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
+               }
+
+               // Sort Chat List Immediately
+               setMyChats(prevChats => {
+                   const updatedChats = prevChats.map(chat => {
+                       if (chat.id === chatId) { return { ...chat, lastMessage: newMessageObj }; }
+                       return chat;
+                   });
+                   return updatedChats.sort((a, b) => {
+                       const tA = a.lastMessage?.timestamp || 0;
+                       const tB = b.lastMessage?.timestamp || 0;
+                       return tB - tA;
+                   });
+               });
+
+               if (newRecord.sender !== user.username) {
+                   try { audioRef.current.play(); } catch(e){}
+               }
+            }
+         }
+         
+         if (eventType === 'UPDATE') {
+             const chatId = newRecord.chat_id;
              if (activeChatIdRef.current === chatId) {
-                 setMessages(prev => { if (prev.some(m => m.id === newMessageObj.id)) return prev; return [...prev, newMessageObj]; });
-             } else {
-                setUnreadCounts(prev => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
+                 try { const contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId); setMessages(prev => prev.map(m => m.id === newRecord.id ? { ...m, content: contentStr } : m)); } catch(e) {}
              }
-
-             // Sort Chat List Immediately
-             setMyChats(prevChats => {
-                 // Map to update lastMessage
-                 const updatedChats = prevChats.map(chat => {
-                     if (chat.id === chatId) { return { ...chat, lastMessage: newMessageObj }; }
-                     return chat;
-                 });
-                 // Sort
-                 return updatedChats.sort((a, b) => {
-                     const tA = a.lastMessage?.timestamp || 0;
-                     const tB = b.lastMessage?.timestamp || 0;
-                     return tB - tA;
-                 });
-             });
-
-             if (newRecord.sender !== user.username) {
-                 try { audioRef.current.play(); } catch(e){}
+         }
+         if (eventType === 'DELETE') {
+             if (activeChatIdRef.current) { setMessages(prev => prev.filter(m => m.id !== oldRecord.id)); }
+         }
+      },
+      // 2. Handle Chats Table Events (Sync Avatars/Descriptions instantly)
+      (payload) => {
+         const eventType = payload.eventType;
+         const newRecord = payload.new;
+         
+         if (eventType === 'UPDATE') {
+             // If a chat I am in is updated (e.g. group avatar changed, new description, new participants)
+             const chatId = newRecord.id;
+             
+             // Update the chat in my list
+             setMyChats(prev => prev.map(c => {
+                 if (c.id === chatId) {
+                     // Merge new data
+                     return { ...c, ...newRecord };
+                 }
+                 return c;
+             }));
+             
+             // If it's the active chat, update the active view immediately
+             if (activeChatIdRef.current === chatId) {
+                 setActiveChat(prev => prev ? { ...prev, ...newRecord } : prev);
+                 // If participants changed, refresh profiles
+                 if (newRecord.participants) {
+                     getProfiles(newRecord.participants).then(p => setProfilesCache(prev => ({...prev, ...p})));
+                 }
              }
-          }
-       }
-       
-       if (eventType === 'UPDATE') {
-           const chatId = newRecord.chat_id;
-           if (activeChatIdRef.current === chatId) {
-               try { const contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId); setMessages(prev => prev.map(m => m.id === newRecord.id ? { ...m, content: contentStr } : m)); } catch(e) {}
-           }
-       }
-       if (eventType === 'DELETE') {
-           if (activeChatIdRef.current) { setMessages(prev => prev.filter(m => m.id !== oldRecord.id)); }
-       }
-    });
+         }
+      }
+    );
 
     addToast("Secure Feed Connected", 'system');
     return () => { unsub(); };

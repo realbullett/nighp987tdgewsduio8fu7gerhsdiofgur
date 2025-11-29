@@ -405,8 +405,9 @@ export const updateAvatar = async (username: string, avatarBase64: string) => {
 };
 
 export const updateGroupAvatar = async (groupId: string, avatarBase64: string) => {
-  const avatar = await resizeImage(avatarBase64, 200, 200);
-  await supabase.from('chats').update({ avatar }).eq('id', groupId);
+  // Pass base64 directly (it might be a GIF which resizeImage handles)
+  // We assume avatarBase64 is already processed by resizeImage in the UI component
+  await supabase.from('chats').update({ avatar: avatarBase64 }).eq('id', groupId);
 };
 
 export const updateGroupDescription = async (groupId: string, description: string) => {
@@ -639,12 +640,15 @@ export const addMessageReaction = async (chatId: string, messageId: string, emoj
   }).eq('id', messageId);
 };
 
-export const subscribeToGlobalMessages = (onEvent: (payload: any) => void) => {
-    // Listen to ALL public message events (*). This handles Inserts, Updates, Deletes globally.
-    // The 'global-messages' channel name is shared.
-    const channel = supabase.channel('global-messages')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, onEvent)
+// --- SUBSCRIPTIONS ---
+export const subscribeToGlobalMessages = (onMessageEvent: (payload: any) => void, onChatEvent: (payload: any) => void) => {
+    // We create a SINGLE channel but attach multiple handlers.
+    // This allows us to listen to ALL changes relevant to the chat experience.
+    const channel = supabase.channel('global-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, onMessageEvent)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, onChatEvent)
         .subscribe();
+        
     return () => { supabase.removeChannel(channel); };
 };
 
