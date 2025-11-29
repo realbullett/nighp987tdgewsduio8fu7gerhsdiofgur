@@ -1,11 +1,10 @@
 
-
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment } from '../types';
 import { 
   getMessages, sendMessage, getMyChats, getWelcomeChat,
   getUserProfile, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend,
-  createGroupChat, updateAvatar, updateProfile, subscribeToChat, decryptMessage, resizeImage, detectLinks,
+  createGroupChat, updateAvatar, updateProfile, decryptMessage, resizeImage, detectLinks,
   getDMChatId, updateGroupAvatar, addMessageReaction, deleteMessage, updateMessage, subscribeToGlobalMessages,
   getProfiles, updateGroupDescription, leaveGroup, addGroupMembers, fetchTenorGifs, TenorGif
 } from '../utils';
@@ -537,6 +536,10 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   // Contacts Cache
   const [friendProfiles, setFriendProfiles] = useState<Record<string, UserProfile>>({});
 
+  // Refs for Global Subscriptions (prevents stale closure issues)
+  const activeChatIdRef = useRef<string | null>(null);
+  const myChatsRef = useRef<ChatRoom[]>([]);
+
   const addToast = (message: string, type: Toast['type'] = 'info') => {
      const id = Date.now();
      setToasts(prev => [...prev, { id, message, type }]);
@@ -612,56 +615,100 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
      }
   }, [activeChat?.id]);
 
+  // Update refs for the global subscription to use
+  useEffect(() => { activeChatIdRef.current = activeChat?.id || null; }, [activeChat]);
+  useEffect(() => { myChatsRef.current = myChats; }, [myChats]);
+
+  // SINGLE GLOBAL REALTIME SUBSCRIPTION
   useEffect(() => {
-    const unsub = subscribeToGlobalMessages((payload) => {
-       if (payload.eventType === 'INSERT') {
-          const newMsg = payload.new;
-          const belongsToMyChat = myChats.some(c => c.id === newMsg.chat_id);
+    const unsub = subscribeToGlobalMessages(async (payload) => {
+       const eventType = payload.eventType;
+       const newRecord = payload.new;
+       const oldRecord = payload.old;
+
+       // Handle INSERT (New Messages)
+       if (eventType === 'INSERT') {
+          const chatId = newRecord.chat_id;
+          const belongsToMyChat = myChatsRef.current.some(c => c.id === chatId);
           
           if (belongsToMyChat) {
-             if (activeChat?.id !== newMsg.chat_id) {
-                setUnreadCounts(prev => ({ ...prev, [newMsg.chat_id]: (prev[newMsg.chat_id] || 0) + 1 }));
-                if (newMsg.sender !== user.username) {
-                   try { audioRef.current.play(); } catch(e){}
-                }
+             // 1. Decrypt content immediately to update UI snippet
+             let contentStr = '';
+             try {
+                contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId);
+             } catch(e) { console.error("Realtime Decrypt Error", e); }
+
+             const newMessageObj: ChatMessage = {
+                 id: newRecord.id,
+                 sender: newRecord.sender,
+                 content: contentStr,
+                 timestamp: new Date(newRecord.created_at).getTime()
+             };
+
+             // 2. If chat is open, update message list (avoid duplicates via ID check)
+             if (activeChatIdRef.current === chatId) {
+                 setMessages(prev => {
+                     if (prev.some(m => m.id === newMessageObj.id)) return prev;
+                     return [...prev, newMessageObj];
+                 });
+             } else {
+                // If not open, increment unread
+                setUnreadCounts(prev => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
              }
-             if (closedChatIds.has(newMsg.chat_id)) {
-                 const newSet = new Set(closedChatIds);
-                 newSet.delete(newMsg.chat_id);
-                 setClosedChatIds(newSet);
-                 localStorage.setItem('night_closed_chats', JSON.stringify(Array.from(newSet)));
+
+             // 3. CRITICAL: Update Chat List Last Message & Sort Order IMMEDIATELY
+             setMyChats(prevChats => {
+                 const updatedChats = prevChats.map(chat => {
+                     if (chat.id === chatId) {
+                         return { ...chat, lastMessage: newMessageObj };
+                     }
+                     return chat;
+                 });
+                 // Sort descending by timestamp so newest is always top
+                 return updatedChats.sort((a, b) => {
+                     const tA = a.lastMessage?.timestamp || 0;
+                     const tB = b.lastMessage?.timestamp || 0;
+                     return tB - tA;
+                 });
+             });
+
+             if (newRecord.sender !== user.username) {
+                 try { audioRef.current.play(); } catch(e){}
              }
-             refreshData();
           }
        }
-    });
-    return () => { unsub(); };
-  }, [myChats, activeChat?.id, closedChatIds]);
+       
+       // Handle UPDATE (Edits, Reactions)
+       if (eventType === 'UPDATE') {
+           const chatId = newRecord.chat_id;
+           if (activeChatIdRef.current === chatId) {
+               try {
+                   const contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId);
+                   setMessages(prev => prev.map(m => m.id === newRecord.id ? {
+                       ...m,
+                       content: contentStr
+                   } : m));
+               } catch(e) {}
+           }
+       }
 
+       // Handle DELETE
+       if (eventType === 'DELETE') {
+           if (activeChatIdRef.current) {
+               setMessages(prev => prev.filter(m => m.id !== oldRecord.id));
+           }
+       }
+    });
+
+    return () => { unsub(); };
+  }, []); // Run ONCE on mount. Uses refs to access latest state.
+
+  // Fetch history when switching chats
   useEffect(() => {
     if (!activeChat) return;
     setUnreadCounts(prev => ({ ...prev, [activeChat.id]: 0 }));
     getMessages(activeChat.id).then(setMessages);
-    const unsubscribe = subscribeToChat(activeChat.id, async (payload) => {
-      const newRecord = payload.new;
-      if (payload.eventType === 'DELETE') {
-         setMessages(prev => prev.filter(m => m.id !== payload.old.id));
-         return;
-      }
-      if (!newRecord) return;
-      try {
-        const contentStr = await decryptMessage(newRecord.iv, newRecord.content, activeChat.id);
-        const newMessage: ChatMessage = {
-          id: newRecord.id, sender: newRecord.sender, content: contentStr, timestamp: new Date(newRecord.created_at).getTime()
-        };
-        if (payload.eventType === 'INSERT') {
-           setMessages(prev => prev.some(m => m.id === newMessage.id) ? prev : [...prev, newMessage]);
-        } else if (payload.eventType === 'UPDATE') {
-           setMessages(prev => prev.map(m => m.id === newMessage.id ? newMessage : m));
-        }
-      } catch (e) { }
-    });
-    return () => { unsubscribe(); };
+    // Note: No per-chat subscription here anymore. Global one handles it.
   }, [activeChat?.id]);
 
   useLayoutEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }); }, [messages, activeChat?.id]);
@@ -675,7 +722,10 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
 
     const payload: MessageContent = { text: textToSend, attachments: attachments.length > 0 ? attachments : undefined };
     const contentString = JSON.stringify(payload);
-    const tempId = Date.now().toString();
+    
+    // Generate UUID client-side for strict deduping between Optimistic UI and Realtime Event
+    const tempId = crypto.randomUUID(); 
+
     const optimisticMsg: ChatMessage = { id: tempId, sender: user.username, content: contentString, timestamp: Date.now() };
     
     setMessages(prev => [...prev, optimisticMsg]);
@@ -685,9 +735,18 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
     }
 
     try {
-      const confirmedMsg = await sendMessage(activeChat.id, user.username, contentString);
+      // Pass the pre-generated ID to the backend
+      const confirmedMsg = await sendMessage(activeChat.id, user.username, contentString, tempId);
+      
+      // We don't need to swap IDs since we used the real UUID for the optimistic update.
+      // But we can update timestamp/metadata if needed.
       setMessages(prev => prev.map(m => m.id === tempId ? confirmedMsg : m));
-      setMyChats(prev => prev.map(c => c.id === activeChat.id ? { ...c, lastMessage: confirmedMsg } : c).sort((a,b) => (b.lastMessage?.timestamp||0) - (a.lastMessage?.timestamp||0)));
+      
+      // Update Chat List instantly for "Me" as well
+      setMyChats(prev => {
+          const updated = prev.map(c => c.id === activeChat.id ? { ...c, lastMessage: confirmedMsg } : c);
+          return updated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
+      });
     } catch (err) {
       setMessages(prev => prev.filter(m => m.id !== tempId));
       if (!overrideText) setInputText(payload.text);

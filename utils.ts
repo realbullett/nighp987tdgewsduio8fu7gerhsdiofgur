@@ -1,5 +1,3 @@
-
-
 import { createClient } from '@supabase/supabase-js';
 import { EncryptedFile, ChatMessage, ChatRoom, UserProfile, User, MessageContent } from './types';
 
@@ -423,8 +421,6 @@ export const leaveGroup = async (chatId: string, username: string) => {
   if (data) {
     const newParticipants = data.participants.filter((p: string) => p !== username);
     if (newParticipants.length === 0) {
-        // If it's a group, we might want to delete it if empty, but keeping it for history is safer.
-        // Actually for this app, let's delete it if it's not the official chat.
         if (chatId !== WELCOME_CHAT_ID) {
             await supabase.from('chats').delete().eq('id', chatId);
         }
@@ -547,7 +543,7 @@ export const getMessages = async (chatId: string): Promise<ChatMessage[]> => {
   return decrypted;
 };
 
-export const sendMessage = async (chatId: string, sender: string, content: string): Promise<ChatMessage> => {
+export const sendMessage = async (chatId: string, sender: string, content: string, messageId?: string): Promise<ChatMessage> => {
   if (chatId === WELCOME_CHAT_ID && sender !== 'night') {
     throw new Error("Only 'night' can post in the Official Night channel.");
   }
@@ -564,7 +560,11 @@ export const sendMessage = async (chatId: string, sender: string, content: strin
      }
   }
 
+  // Use client-provided ID or generate one to ensure collision resistance during optimistic updates
+  const id = messageId || crypto.randomUUID();
+
   const { data, error } = await supabase.from('messages').insert({
+    id,
     chat_id: chatId,
     sender,
     content: encrypted.data,
@@ -626,16 +626,11 @@ export const addMessageReaction = async (chatId: string, messageId: string, emoj
   }).eq('id', messageId);
 };
 
-export const subscribeToChat = (chatId: string, onMessage: (payload: any) => void) => {
-  const channel = supabase.channel(`chat:${chatId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` }, onMessage)
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
-};
-
 export const subscribeToGlobalMessages = (onEvent: (payload: any) => void) => {
+    // Listen to ALL public message events (*). This handles Inserts, Updates, Deletes globally.
+    // This removes the need to subscribe/unsubscribe when switching chats.
     const channel = supabase.channel('global-messages')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, onEvent)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, onEvent)
         .subscribe();
     return () => { supabase.removeChannel(channel); };
 };
