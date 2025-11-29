@@ -1,3 +1,5 @@
+
+
 import { createClient } from '@supabase/supabase-js';
 import { EncryptedFile, ChatMessage, ChatRoom, UserProfile, User, MessageContent } from './types';
 
@@ -8,6 +10,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_LQrnUGOne0SsfZs
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const WELCOME_CHAT_ID = 'group_official_night';
+const TENOR_KEY = 'AIzaSyBADzP48occrT2Id2u61yhMX-FR8pRMB40';
 
 // --- Crypto Utilities ---
 const ENC_ALGO = 'AES-GCM';
@@ -149,6 +152,48 @@ export const detectLinks = (text: string): string[] => {
   if (!text) return [];
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return text.match(urlRegex) || [];
+};
+
+// --- Tenor API ---
+export interface TenorGif {
+    id: string;
+    url: string;
+    preview: string;
+    title: string;
+}
+
+export interface TenorResponse {
+    results: TenorGif[];
+    next: string;
+}
+
+export const fetchTenorGifs = async (search: string = '', limit = 20, pos: string = ''): Promise<TenorResponse> => {
+    try {
+        let endpoint = search 
+            ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(search)}&key=${TENOR_KEY}&client_key=NightApp&limit=${limit}&media_filter=minimal`
+            : `https://tenor.googleapis.com/v2/featured?key=${TENOR_KEY}&client_key=NightApp&limit=${limit}&media_filter=minimal`;
+        
+        if (pos) {
+            endpoint += `&pos=${pos}`;
+        }
+        
+        const res = await fetch(endpoint);
+        const data = await res.json();
+        
+        if (!data.results) return { results: [], next: '' };
+
+        const results = data.results.map((r: any) => ({
+            id: r.id,
+            url: r.media_formats.gif.url,
+            preview: r.media_formats.tinygif.url,
+            title: r.content_description
+        }));
+
+        return { results, next: data.next || '' };
+    } catch (e) {
+        console.error("Tenor API Error", e);
+        return { results: [], next: '' };
+    }
 };
 
 // --- Auth Functions ---
@@ -360,6 +405,35 @@ export const updateGroupAvatar = async (groupId: string, avatarBase64: string) =
   await supabase.from('chats').update({ avatar }).eq('id', groupId);
 };
 
+export const updateGroupDescription = async (groupId: string, description: string) => {
+  await supabase.from('chats').update({ description }).eq('id', groupId);
+};
+
+export const addGroupMembers = async (chatId: string, newMembers: string[]) => {
+  const { data } = await supabase.from('chats').select('participants').eq('id', chatId).single();
+  if (data) {
+    const current = new Set(data.participants);
+    newMembers.forEach(m => current.add(m));
+    await supabase.from('chats').update({ participants: Array.from(current) }).eq('id', chatId);
+  }
+};
+
+export const leaveGroup = async (chatId: string, username: string) => {
+  const { data } = await supabase.from('chats').select('participants').eq('id', chatId).single();
+  if (data) {
+    const newParticipants = data.participants.filter((p: string) => p !== username);
+    if (newParticipants.length === 0) {
+        // If it's a group, we might want to delete it if empty, but keeping it for history is safer.
+        // Actually for this app, let's delete it if it's not the official chat.
+        if (chatId !== WELCOME_CHAT_ID) {
+            await supabase.from('chats').delete().eq('id', chatId);
+        }
+    } else {
+        await supabase.from('chats').update({ participants: newParticipants }).eq('id', chatId);
+    }
+  }
+};
+
 // --- Chats ---
 
 export const getDMChatId = (userA: string, userB: string) => {
@@ -378,6 +452,7 @@ export const getWelcomeChat = async (): Promise<ChatRoom> => {
       id: WELCOME_CHAT_ID,
       type: 'group',
       name: 'Official Night',
+      description: 'The official gathering place for all night dwellers.',
       participants: ['night'], 
       admins: ['night']
     });
@@ -387,17 +462,18 @@ export const getWelcomeChat = async (): Promise<ChatRoom> => {
     id: WELCOME_CHAT_ID,
     type: 'group',
     name: 'Official Night',
+    description: data?.description || 'The official gathering place for all night dwellers.',
     participants: allUsernames, 
     admins: ['night'],
     avatar: ''
   };
 };
 
-export const createGroupChat = async (name: string, creator: string, members: string[]) => {
+export const createGroupChat = async (name: string, description: string, creator: string, members: string[]) => {
   const id = `group_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
   const participants = Array.from(new Set([creator, ...members]));
   
-  const room = { id, type: 'group', name, participants, admins: [creator], avatar: '' };
+  const room = { id, type: 'group', name, description, participants, admins: [creator], avatar: '' };
   const { error } = await supabase.from('chats').insert(room);
   if (error) throw error;
   return room as ChatRoom;

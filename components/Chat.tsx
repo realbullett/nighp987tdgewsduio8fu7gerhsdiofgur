@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment } from '../types';
 import { 
@@ -5,13 +7,14 @@ import {
   getUserProfile, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend,
   createGroupChat, updateAvatar, updateProfile, subscribeToChat, decryptMessage, resizeImage, detectLinks,
   getDMChatId, updateGroupAvatar, addMessageReaction, deleteMessage, updateMessage, subscribeToGlobalMessages,
-  getProfiles
+  getProfiles, updateGroupDescription, leaveGroup, addGroupMembers, fetchTenorGifs, TenorGif
 } from '../utils';
 import { 
   Send, LogOut, MessageSquare, Users, Hash, 
   UserPlus, Menu, Info, X, Check, Camera, Paperclip, 
   Image as ImageIcon, ExternalLink, Settings, Link as LinkIcon, Moon, Sparkles, Loader2,
-  ChevronLeft, Plus, Smile, MoreVertical, Trash, Lock, Edit2, Copy, File, Download, UserMinus, Image, Mail
+  ChevronLeft, Plus, Smile, MoreVertical, Trash, Lock, Edit2, Copy, File, Download, UserMinus, Image, Mail,
+  Search, Clapperboard, Flame
 } from 'lucide-react';
 
 interface ChatProps {
@@ -22,6 +25,7 @@ interface ChatProps {
 const OFFICIAL_CHAT_ID = 'group_official_night';
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
 const MORE_EMOJIS = ['👋', '🙌', '👀', '💯', '💩', '🤡', '🤮', '💀', '👻', '👽', '🤖', '👾', '🎃', '😺', '🙈', '💢', '💥', '💫', '💦', '💤', '🎉', '🎈', '🎂', '🎄', '🎁', '🏆', '🥇', '🥈', '🥉', '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱'];
+const GIF_CATEGORIES = ['Trending', 'Happy', 'Sad', 'LOL', 'Love', 'Angry', 'Anime', 'Meme', 'Confused', 'Wow', 'Party'];
 
 // Custom Twitter-Style Verified Badge
 const VerifiedIcon = ({ className }: { className?: string }) => (
@@ -32,7 +36,191 @@ const VerifiedIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// --- 3D Sleeping Creature Component ---
+const SleepingCreature = () => {
+  return (
+    <div className="flex flex-col items-center justify-center h-full w-full pointer-events-none select-none">
+      <div className="relative w-40 h-40 animate-float">
+        {/* Glow effect */}
+        <div className="absolute inset-0 bg-purple-500/20 blur-[60px] rounded-full animate-pulse-slow"></div>
+        
+        {/* Main Body (Sphere) */}
+        <div className="relative w-full h-full rounded-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-black shadow-[inset_-10px_-10px_20px_rgba(0,0,0,1),inset_5px_5px_15px_rgba(255,255,255,0.05)] border border-white/5 overflow-hidden">
+             
+             {/* Face Container - Breathing animation */}
+             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 animate-breathe">
+                {/* Eyes */}
+                <div className="flex gap-6 mt-4">
+                    <div className="w-8 h-4 border-b-[3px] border-zinc-500 rounded-full opacity-60"></div>
+                    <div className="w-8 h-4 border-b-[3px] border-zinc-500 rounded-full opacity-60"></div>
+                </div>
+                {/* Mouth */}
+                <div className="w-2 h-2 bg-zinc-600 rounded-full opacity-40"></div>
+             </div>
+
+             {/* Texture/Noise */}
+             <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
+        </div>
+
+        {/* Zzz Particles */}
+        <div className="absolute -top-6 right-0">
+             <span className="absolute text-2xl font-bold text-zinc-600 animate-zzz-1">Z</span>
+             <span className="absolute text-xl font-bold text-zinc-700 animate-zzz-2" style={{ top: '-15px', right: '-15px' }}>z</span>
+             <span className="absolute text-lg font-bold text-zinc-800 animate-zzz-3" style={{ top: '-30px', right: '-5px' }}>z</span>
+        </div>
+      </div>
+      
+      <div className="mt-12 text-center relative z-10">
+          <h3 className="text-zinc-500 font-bold uppercase tracking-[0.3em] text-xs mb-2">Encrypted Feed Offline</h3>
+          <p className="text-zinc-700 text-[10px] font-mono">Waiting for secure handshake...</p>
+      </div>
+
+      <style>{`
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.1); }
+        }
+        @keyframes zzz-1 {
+            0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+            20% { opacity: 1; }
+            80% { opacity: 0; transform: translate(15px, -30px) scale(1.2); }
+            100% { opacity: 0; }
+        }
+        @keyframes zzz-2 {
+            0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+            40% { opacity: 1; }
+            90% { opacity: 0; transform: translate(20px, -40px) scale(1.2); }
+            100% { opacity: 0; }
+        }
+        @keyframes zzz-3 {
+            0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+            50% { opacity: 1; }
+            100% { opacity: 0; transform: translate(10px, -50px) scale(1.2); }
+            100% { opacity: 0; }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-breathe { animation: breathe 4s ease-in-out infinite; }
+        .animate-pulse-slow { animation: pulse-slow 5s ease-in-out infinite; }
+        .animate-zzz-1 { animation: zzz-1 3s infinite; }
+        .animate-zzz-2 { animation: zzz-2 3s infinite 0.5s; }
+        .animate-zzz-3 { animation: zzz-3 3s infinite 1s; }
+      `}</style>
+    </div>
+  );
+};
+
 // --- SUB-COMPONENTS ---
+
+const GifPicker = ({ onSelect, onClose }: { onSelect: (url: string) => void, onClose: () => void }) => {
+    const [search, setSearch] = useState('');
+    const [gifs, setGifs] = useState<TenorGif[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [activeCategory, setActiveCategory] = useState('Trending');
+    const [nextCursor, setNextCursor] = useState('');
+    const containerRef = useRef<HTMLDivElement>(null);
+    
+    // Debounce Search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            loadGifs(search || (activeCategory === 'Trending' ? '' : activeCategory), true);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search, activeCategory]);
+
+    const loadGifs = async (query: string, reset: boolean = false) => {
+        if (loading) return;
+        setLoading(true);
+        
+        const pos = reset ? '' : nextCursor;
+        const response = await fetchTenorGifs(query === 'Trending' ? '' : query, 20, pos);
+        
+        if (reset) {
+            setGifs(response.results);
+        } else {
+            setGifs(prev => [...prev, ...response.results]);
+        }
+        
+        setNextCursor(response.next);
+        setLoading(false);
+    };
+
+    const handleScroll = () => {
+        if (containerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+            if (scrollTop + clientHeight >= scrollHeight - 100 && nextCursor && !loading) {
+                loadGifs(search || (activeCategory === 'Trending' ? '' : activeCategory), false);
+            }
+        }
+    };
+
+    return (
+        <div className="absolute bottom-full right-0 mb-2 w-[350px] max-w-[95vw] bg-black border border-zinc-800 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col h-[400px] animate-scale-in">
+            <div className="p-3 border-b border-zinc-900 bg-zinc-950">
+                <div className="relative mb-3">
+                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500" />
+                    <input 
+                        value={search}
+                        onChange={(e) => { setSearch(e.target.value); if(e.target.value) setActiveCategory('Search'); }}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-zinc-700 outline-none"
+                        placeholder="Search Tenor GIFs..."
+                        autoFocus
+                    />
+                </div>
+                {/* Categories */}
+                <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                    {GIF_CATEGORIES.map(cat => (
+                        <button 
+                            key={cat}
+                            onClick={() => { setActiveCategory(cat); setSearch(''); setNextCursor(''); }}
+                            className={`px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-colors ${activeCategory === cat && !search ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'}`}
+                        >
+                            {cat === 'Trending' && <Flame className="w-3 h-3 inline mr-1" />}
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div 
+                ref={containerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto p-2 custom-scrollbar bg-black"
+            >
+                <div className="grid grid-cols-2 gap-2">
+                    {gifs.map(gif => (
+                        <div 
+                            key={gif.id} 
+                            onClick={() => onSelect(gif.url)}
+                            className="cursor-pointer rounded overflow-hidden bg-zinc-900 relative group aspect-video hover:ring-2 hover:ring-white transition-all"
+                        >
+                            <img src={gif.preview} alt={gif.title} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        </div>
+                    ))}
+                </div>
+                {loading && (
+                    <div className="flex items-center justify-center p-4">
+                        <Loader2 className="w-6 h-6 animate-spin text-zinc-700" />
+                    </div>
+                )}
+                {!loading && gifs.length === 0 && <div className="text-center text-zinc-600 text-xs py-10">No GIFs found.</div>}
+            </div>
+            
+            <div className="p-2 border-t border-zinc-900 bg-zinc-950 flex justify-between items-center text-[10px] text-zinc-500">
+                <span>Via Tenor</span>
+                <button onClick={onClose} className="hover:text-white">Close</button>
+            </div>
+        </div>
+    );
+};
 
 const MessageBubble = ({ 
   msg, isMe, senderProfile, chatId, onReact, isGroup, onDelete, onEdit, onProfileClick, isSequence, isLastInSequence
@@ -158,12 +346,13 @@ const MessageBubble = ({
 
           {/* Links */}
           {links.length > 0 && !isEditing && links.map((link, i) => {
-             const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(link);
+             // Updated Regex to support GIFs from Tenor which might include query params or end in .gif
+             const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(link);
              return (
                <a key={i} href={link} target="_blank" rel="noopener noreferrer" className={`block mt-2 rounded-lg overflow-hidden border transition-all ${isMe ? 'border-zinc-700 bg-zinc-900/20' : 'border-zinc-800 bg-black/50'}`}>
                  {isImage ? (
-                   <div className="w-full h-32 bg-zinc-900 flex items-center justify-center overflow-hidden">
-                      <img src={link} className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity" />
+                   <div className="w-full bg-zinc-900 flex items-center justify-center overflow-hidden">
+                      <img src={link} className="w-full h-auto max-h-[300px] object-cover opacity-90 hover:opacity-100 transition-opacity" />
                    </div>
                  ) : (
                    <div className="p-2 flex items-center gap-2 text-xs text-blue-400">
@@ -243,9 +432,9 @@ const MessageBubble = ({
   );
 };
 
-// ... (MiniProfile logic kept same)
-const MiniProfile = ({ username, onClose, onMessage }: { username: string, onClose: () => void, onMessage: (user: string) => void }) => {
-    const [profile, setProfile] = useState<UserProfile | null>(null);
+const MiniProfile = ({ username, initialData, onClose, onMessage }: { username: string, initialData?: UserProfile, onClose: () => void, onMessage: (user: string) => void }) => {
+    const [profile, setProfile] = useState<UserProfile | null>(initialData || null);
+    
     useEffect(() => { 
         getUserProfile(username).then(p => {
             if (p) setProfile(p);
@@ -323,6 +512,10 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [closedChatIds, setClosedChatIds] = useState<Set<string>>(new Set());
   const [showMobileInfo, setShowMobileInfo] = useState(false);
   const [showInputEmoji, setShowInputEmoji] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Settings State
   const [settingsBanner, setSettingsBanner] = useState('');
@@ -333,6 +526,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
 
   const [addFriendInput, setAddFriendInput] = useState('');
   const [groupNameInput, setGroupNameInput] = useState('');
+  const [groupDescInput, setGroupDescInput] = useState(''); // NEW state for group description
   const [selectedFriendsForGroup, setSelectedFriendsForGroup] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const groupLogoRef = useRef<HTMLInputElement>(null);
@@ -472,19 +666,23 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
 
   useLayoutEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }); }, [messages, activeChat?.id]);
   
-  const handleSendMessage = async (e?: React.FormEvent) => {
+  const handleSendMessage = async (e?: React.FormEvent, overrideText?: string) => {
     e?.preventDefault();
-    if ((!inputText.trim() && attachments.length === 0) || !activeChat) return;
+    const textToSend = overrideText || inputText;
+    
+    if ((!textToSend.trim() && attachments.length === 0) || !activeChat) return;
     if (activeChat.id === OFFICIAL_CHAT_ID && user.username !== 'night') return;
 
-    const payload: MessageContent = { text: inputText, attachments: attachments.length > 0 ? attachments : undefined };
+    const payload: MessageContent = { text: textToSend, attachments: attachments.length > 0 ? attachments : undefined };
     const contentString = JSON.stringify(payload);
     const tempId = Date.now().toString();
     const optimisticMsg: ChatMessage = { id: tempId, sender: user.username, content: contentString, timestamp: Date.now() };
     
     setMessages(prev => [...prev, optimisticMsg]);
-    setInputText(''); setAttachments([]);
-    if (textAreaRef.current) textAreaRef.current.style.height = 'auto';
+    if (!overrideText) {
+        setInputText(''); setAttachments([]);
+        if (textAreaRef.current) textAreaRef.current.style.height = 'auto';
+    }
 
     try {
       const confirmedMsg = await sendMessage(activeChat.id, user.username, contentString);
@@ -492,7 +690,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       setMyChats(prev => prev.map(c => c.id === activeChat.id ? { ...c, lastMessage: confirmedMsg } : c).sort((a,b) => (b.lastMessage?.timestamp||0) - (a.lastMessage?.timestamp||0)));
     } catch (err) {
       setMessages(prev => prev.filter(m => m.id !== tempId));
-      setInputText(payload.text);
+      if (!overrideText) setInputText(payload.text);
     }
   };
 
@@ -541,13 +739,25 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       }
   };
 
-  const handleCloseChat = (e: React.MouseEvent, chatId: string) => {
+  // UPDATED: Handle X button to Leave Group or Close DM
+  const handleRemoveChat = async (e: React.MouseEvent, chat: ChatRoom) => {
       e.stopPropagation();
-      const newSet = new Set(closedChatIds);
-      newSet.add(chatId);
-      setClosedChatIds(newSet);
-      localStorage.setItem('night_closed_chats', JSON.stringify(Array.from(newSet)));
-      if (activeChat?.id === chatId) setActiveChat(null);
+      
+      if (chat.type === 'group') {
+          if (confirm(`Are you sure you want to leave ${chat.name}?`)) {
+              await leaveGroup(chat.id, user.username);
+              setMyChats(prev => prev.filter(c => c.id !== chat.id));
+              if (activeChat?.id === chat.id) setActiveChat(null);
+              addToast("Left Group", "info");
+          }
+      } else {
+          // Close DM (Hide)
+          const newSet = new Set(closedChatIds);
+          newSet.add(chat.id);
+          setClosedChatIds(newSet);
+          localStorage.setItem('night_closed_chats', JSON.stringify(Array.from(newSet)));
+          if (activeChat?.id === chat.id) setActiveChat(null);
+      }
   };
   
   const handleMessageUser = async (targetUsername: string) => {
@@ -594,7 +804,43 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
      }
   };
 
-  const displayedChats = myChats.filter(c => !closedChatIds.has(c.id));
+  const handleUpdateDescription = async (desc: string) => {
+    if (!activeChat) return;
+    await updateGroupDescription(activeChat.id, desc);
+    const updated = { ...activeChat, description: desc };
+    setActiveChat(updated);
+    setMyChats(prev => prev.map(c => c.id === activeChat.id ? updated : c));
+    addToast("Description updated", "success");
+  };
+
+  const handleAddMembers = async (newMembers: string[]) => {
+    if (!activeChat) return;
+    await addGroupMembers(activeChat.id, newMembers);
+    const updatedParticipants = [...activeChat.participants, ...newMembers];
+    const updatedChat = { ...activeChat, participants: updatedParticipants };
+    setActiveChat(updatedChat);
+    setMyChats(prev => prev.map(c => c.id === activeChat.id ? updatedChat : c));
+    addToast("Members added", "success");
+    // Also fetch profiles for new members to ensure avatar cache is warm
+    getProfiles(newMembers).then(p => {
+        setProfilesCache(prev => ({...prev, ...p}));
+    });
+  };
+
+  // FILTER LOGIC
+  const displayedChats = myChats.filter(c => !closedChatIds.has(c.id)).filter(c => {
+      if (!searchQuery) return true;
+      const lowerQ = searchQuery.toLowerCase();
+      if (c.name.toLowerCase().includes(lowerQ)) return true;
+      if (c.type === 'dm') {
+          const other = c.participants.find(p => p !== user.username);
+          if (other?.toLowerCase().includes(lowerQ)) return true;
+      }
+      return false;
+  });
+
+  const displayedFriends = (myProfile?.friends || []).filter(f => f.toLowerCase().includes(searchQuery.toLowerCase()));
+
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
   const totalUnreadLabel = totalUnread > 99 ? '99+' : totalUnread.toString();
 
@@ -612,16 +858,16 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
          ))}
       </div>
 
-      {miniProfileUser && <MiniProfile key={miniProfileUser} username={miniProfileUser} onClose={() => setMiniProfileUser(null)} onMessage={handleMessageUser} />}
+      {miniProfileUser && <MiniProfile key={miniProfileUser} username={miniProfileUser} initialData={profilesCache[miniProfileUser]} onClose={() => setMiniProfileUser(null)} onMessage={handleMessageUser} />}
 
       <aside className={`md:flex flex-col w-full md:w-[320px] bg-black border-r border-zinc-900 transition-all ${activeChat ? 'hidden' : 'flex'}`}>
         <div className="flex pt-[env(safe-area-inset-top)] border-b border-zinc-900 bg-black/50 min-h-[3.5rem] items-end">
            <div className="flex w-full px-2 pb-2 gap-1">
-             <button onClick={() => setSidebarTab('chats')} className={`flex-1 py-2 text-[11px] font-bold rounded transition-colors relative flex items-center justify-center gap-2 ${sidebarTab === 'chats' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
+             <button onClick={() => { setSidebarTab('chats'); setSearchQuery(''); }} className={`flex-1 py-2 text-[11px] font-bold rounded transition-colors relative flex items-center justify-center gap-2 ${sidebarTab === 'chats' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
                 CHATS
                 {totalUnread > 0 && <span className="bg-red-500 text-white text-[9px] px-1 rounded-full">{totalUnreadLabel}</span>}
              </button>
-             <button onClick={() => { setSidebarTab('contacts'); refreshData(); }} className={`flex-1 py-2 text-[11px] font-bold rounded transition-colors relative ${sidebarTab === 'contacts' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
+             <button onClick={() => { setSidebarTab('contacts'); refreshData(); setSearchQuery(''); }} className={`flex-1 py-2 text-[11px] font-bold rounded transition-colors relative ${sidebarTab === 'contacts' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
                CONTACTS
                {(myProfile?.incomingRequests?.length || 0) > 0 && <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
              </button>
@@ -632,6 +878,29 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
            {sidebarTab === 'chats' ? (
              <>
                <button onClick={() => setShowCreateGroup(true)} className="w-full py-2 mb-2 rounded border border-dashed border-zinc-900 text-zinc-600 text-[10px] font-bold hover:bg-zinc-900 flex items-center justify-center gap-2"><Plus className="w-3 h-3" /> NEW GROUP</button>
+               
+               {/* Search Bar for Chats */}
+               <div className="px-1 mb-3">
+                   <div className="relative group">
+                       <Search className="absolute left-3 top-2.5 w-3 h-3 text-zinc-500 group-focus-within:text-white transition-colors" />
+                       <input 
+                           value={searchQuery}
+                           onChange={e => setSearchQuery(e.target.value)}
+                           className="w-full bg-zinc-900/50 border border-zinc-900 focus:border-zinc-700 rounded-xl py-2 pl-8 pr-3 text-[11px] text-white placeholder-zinc-600 outline-none transition-all"
+                           placeholder="Search chats..."
+                       />
+                       {searchQuery && (
+                           <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2.5 text-zinc-500 hover:text-white">
+                               <X className="w-3 h-3" />
+                           </button>
+                       )}
+                   </div>
+               </div>
+
+               {displayedChats.length === 0 && searchQuery && (
+                    <div className="text-center text-zinc-600 text-[10px] mt-4">No chats found.</div>
+               )}
+
                {displayedChats.map(chat => {
                  let displayName = chat.name;
                  let displayAvatar = chat.avatar;
@@ -682,8 +951,10 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                             {chat.lastMessage && <div className="text-[9px] opacity-40">{new Date(chat.lastMessage.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>}
                         </div>
                      </div>
-                     {!isOff && chat.type === 'dm' && (
-                         <div onClick={(e) => handleCloseChat(e, chat.id)} className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 p-1 hover:text-white transition-opacity"><X className="w-3 h-3" /></div>
+                     {!isOff && (
+                         <div onClick={(e) => handleRemoveChat(e, chat)} className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 p-1 hover:text-white hover:bg-red-500/20 rounded transition-all" title={chat.type === 'group' ? "Leave Group" : "Close Chat"}>
+                             <X className={`w-3 h-3 ${chat.type === 'group' ? 'text-red-400' : ''}`} />
+                         </div>
                      )}
                    </button>
                  );
@@ -692,7 +963,26 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
            ) : (
              <>
                 <button onClick={() => setShowAddFriend(true)} className="w-full py-2 mb-4 rounded bg-zinc-900 text-white text-[10px] font-bold hover:bg-zinc-800 flex items-center justify-center gap-2 shadow-lg"><UserPlus className="w-3 h-3" /> ADD FRIEND</button>
-                {(myProfile?.incomingRequests?.length || 0) > 0 && (
+                
+                {/* Search Bar for Contacts */}
+                <div className="px-1 mb-3">
+                   <div className="relative group">
+                       <Search className="absolute left-3 top-2.5 w-3 h-3 text-zinc-500 group-focus-within:text-white transition-colors" />
+                       <input 
+                           value={searchQuery}
+                           onChange={e => setSearchQuery(e.target.value)}
+                           className="w-full bg-zinc-900/50 border border-zinc-900 focus:border-zinc-700 rounded-xl py-2 pl-8 pr-3 text-[11px] text-white placeholder-zinc-600 outline-none transition-all"
+                           placeholder="Search contacts..."
+                       />
+                       {searchQuery && (
+                           <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2.5 text-zinc-500 hover:text-white">
+                               <X className="w-3 h-3" />
+                           </button>
+                       )}
+                   </div>
+               </div>
+
+                {(myProfile?.incomingRequests?.length || 0) > 0 && !searchQuery && (
                     <div className="mb-4">
                         <div className="px-2 text-[10px] font-bold text-zinc-600 uppercase mb-2 tracking-wider flex items-center gap-2">Pending Requests <div className="h-px bg-zinc-900 flex-1"></div></div>
                         {myProfile?.incomingRequests.map(req => {
@@ -714,7 +1004,12 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                 )}
                 <div>
                    <div className="px-2 text-[10px] font-bold text-zinc-600 uppercase mb-2 tracking-wider flex items-center gap-2">Friends <div className="h-px bg-zinc-900 flex-1"></div></div>
-                   {myProfile?.friends.map(friend => {
+                   
+                   {displayedFriends.length === 0 && searchQuery && (
+                        <div className="text-center text-zinc-600 text-[10px] mt-4">No contacts found.</div>
+                   )}
+
+                   {displayedFriends.map(friend => {
                        const p = friendProfiles[friend];
                        const isVer = friend === 'night';
                        return (
@@ -772,12 +1067,25 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                          activeChat?.avatar ? <img src={activeChat.avatar} className="w-full h-full object-cover" /> : (activeChat?.id === OFFICIAL_CHAT_ID ? <Moon className="w-4 h-4 text-purple-400 fill-purple-400" /> : <Hash className="w-4 h-4 text-zinc-500" />)
                     )}
                 </div>
-                <div>
+                <div className="flex flex-col min-w-0">
                     <h2 className="text-white font-bold text-sm flex items-center gap-1">
                         {activeChat?.name || "Select Chat"}
                         {activeChat?.id === OFFICIAL_CHAT_ID && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}
                     </h2>
-                    {activeChat?.type === 'group' && <span className="text-[10px] text-zinc-500 font-medium">{activeChat.participants.length} members</span>}
+                    {activeChat?.type === 'group' ? (
+                       <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium">
+                          <span className="shrink-0">{activeChat.participants.length} members</span>
+                          {activeChat.description && (
+                            <>
+                              <span className="text-zinc-700">•</span>
+                              <span className="truncate max-w-[150px] md:max-w-[300px]">{activeChat.description}</span>
+                            </>
+                          )}
+                       </div>
+                    ) : (
+                       // DM status (optional)
+                       null
+                    )}
                 </div>
              </div>
           </div>
@@ -816,7 +1124,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                  );
              });
           })()
-          ) : <div className="flex flex-col items-center justify-center h-full text-zinc-800"><Moon className="w-16 h-16 mb-4 opacity-20" /><p className="text-xs tracking-widest uppercase">Encrypted Feed Offline</p></div>}
+          ) : <SleepingCreature />}
           <div ref={messagesEndRef} className="h-1" />
         </div>
         
@@ -840,15 +1148,28 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                       <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} multiple />
                       <textarea ref={textAreaRef} value={inputText} onChange={e => { setInputText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }} onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} rows={1} placeholder={`Message #${activeChat.name}`} className="flex-1 bg-transparent border-none text-zinc-200 resize-none py-2 max-h-32 min-h-[24px] custom-scrollbar placeholder-zinc-600 outline-none" style={{ outline: 'none', boxShadow: 'none' }} />
                       
-                      <div className="relative">
-                          <button type="button" onClick={() => setShowInputEmoji(!showInputEmoji)} className="p-2 text-zinc-500 hover:text-white"><Smile className="w-5 h-5"/></button>
-                          {showInputEmoji && (
-                              <div className="absolute bottom-full right-0 mb-2 bg-zinc-950 border border-zinc-800 rounded-xl p-2 w-64 grid grid-cols-8 gap-1 shadow-2xl z-50 h-64 overflow-y-auto custom-scrollbar">
-                                  {MORE_EMOJIS.map(e => (
-                                      <button key={e} type="button" onClick={() => { setInputText(prev => prev + e); setShowInputEmoji(false); }} className="p-1 hover:bg-zinc-800 rounded text-xl">{e}</button>
-                                  ))}
-                              </div>
-                          )}
+                      <div className="relative flex gap-1 items-center">
+                          {/* GIF Button */}
+                          <div className="relative">
+                            <button type="button" onClick={() => { setShowGifPicker(!showGifPicker); setShowInputEmoji(false); }} className={`p-2 hover:text-white transition-colors ${showGifPicker ? 'text-white' : 'text-zinc-500'}`}><Clapperboard className="w-5 h-5"/></button>
+                            {showGifPicker && (
+                                <GifPicker 
+                                    onSelect={(url) => { handleSendMessage(undefined, url); setShowGifPicker(false); }} 
+                                    onClose={() => setShowGifPicker(false)} 
+                                />
+                            )}
+                          </div>
+
+                          <div className="relative">
+                              <button type="button" onClick={() => { setShowInputEmoji(!showInputEmoji); setShowGifPicker(false); }} className={`p-2 hover:text-white transition-colors ${showInputEmoji ? 'text-white' : 'text-zinc-500'}`}><Smile className="w-5 h-5"/></button>
+                              {showInputEmoji && (
+                                  <div className="absolute bottom-full right-0 mb-2 bg-zinc-950 border border-zinc-800 rounded-xl p-2 w-64 grid grid-cols-8 gap-1 shadow-2xl z-50 h-64 overflow-y-auto custom-scrollbar">
+                                      {MORE_EMOJIS.map(e => (
+                                          <button key={e} type="button" onClick={() => { setInputText(prev => prev + e); setShowInputEmoji(false); }} className="p-1 hover:bg-zinc-800 rounded text-xl">{e}</button>
+                                      ))}
+                                  </div>
+                              )}
+                          </div>
                       </div>
 
                       {inputText.trim() || attachments.length > 0 ? <button type="submit" className="p-2 rounded hover:bg-zinc-800 text-white transition-colors"><Send className="w-4 h-4" /></button> : null}
@@ -863,7 +1184,17 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       {activeChat && (
         <>
             <aside className="hidden md:flex w-[260px] bg-black border-l border-zinc-900 flex-col z-30 relative shrink-0 pt-[env(safe-area-inset-top)]">
-               <ChannelInfoContent activeChat={activeChat} user={user} profilesCache={profilesCache} groupLogoRef={groupLogoRef} handleGroupLogoUpload={handleGroupLogoUpload} setMiniProfileUser={setMiniProfileUser} />
+               <ChannelInfoContent 
+                  activeChat={activeChat} 
+                  user={user} 
+                  profilesCache={profilesCache} 
+                  groupLogoRef={groupLogoRef} 
+                  handleGroupLogoUpload={handleGroupLogoUpload} 
+                  setMiniProfileUser={setMiniProfileUser}
+                  onUpdateDescription={handleUpdateDescription}
+                  myFriends={myProfile?.friends || []}
+                  onAddMembers={handleAddMembers}
+               />
             </aside>
 
             {showMobileInfo && (
@@ -873,7 +1204,17 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                          <h3 className="text-white font-bold">Info</h3>
                     </div>
                     <div className="flex-1 overflow-y-auto">
-                        <ChannelInfoContent activeChat={activeChat} user={user} profilesCache={profilesCache} groupLogoRef={groupLogoRef} handleGroupLogoUpload={handleGroupLogoUpload} setMiniProfileUser={setMiniProfileUser} />
+                        <ChannelInfoContent 
+                           activeChat={activeChat} 
+                           user={user} 
+                           profilesCache={profilesCache} 
+                           groupLogoRef={groupLogoRef} 
+                           handleGroupLogoUpload={handleGroupLogoUpload} 
+                           setMiniProfileUser={setMiniProfileUser}
+                           onUpdateDescription={handleUpdateDescription}
+                           myFriends={myProfile?.friends || []}
+                           onAddMembers={handleAddMembers}
+                        />
                     </div>
                 </div>
             )}
@@ -948,12 +1289,21 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
            <div className="bg-black border border-zinc-800 rounded-2xl p-6 w-full max-w-sm animate-scale-in">
               <h3 className="text-white font-bold mb-4 uppercase text-xs">Create Server</h3>
               <input value={groupNameInput} onChange={e => setGroupNameInput(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-white text-sm mb-4 outline-none" placeholder="Name" />
+              
+              <textarea 
+                  value={groupDescInput} 
+                  onChange={e => setGroupDescInput(e.target.value)} 
+                  className="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-white text-sm mb-4 outline-none resize-none" 
+                  placeholder="Description (Optional)" 
+                  rows={2}
+              />
+
               <div className="max-h-40 overflow-y-auto mb-4 bg-zinc-950 rounded-xl p-2 border border-zinc-900 custom-scrollbar">
                  {myProfile?.friends.map(f => (
                     <label key={f} className="flex items-center gap-2 p-2 hover:bg-zinc-900 rounded cursor-pointer"><input type="checkbox" className="accent-white" onChange={e => e.target.checked ? setSelectedFriendsForGroup(p=>[...p,f]) : setSelectedFriendsForGroup(p=>p.filter(x=>x!==f))} /><span className="text-zinc-300 text-sm font-medium">{f}</span></label>
                  ))}
               </div>
-              <div className="flex justify-end gap-2"><button onClick={() => setShowCreateGroup(false)} className="px-4 py-2 text-zinc-500">Cancel</button><button onClick={() => { createGroupChat(groupNameInput, user.username, selectedFriendsForGroup).then(c => { setMyChats(p=>[c,...p]); setActiveChat(c); setShowCreateGroup(false); }); }} className="px-4 py-2 bg-white text-black rounded-lg font-bold">Create</button></div>
+              <div className="flex justify-end gap-2"><button onClick={() => setShowCreateGroup(false)} className="px-4 py-2 text-zinc-500">Cancel</button><button onClick={() => { createGroupChat(groupNameInput, groupDescInput, user.username, selectedFriendsForGroup).then(c => { setMyChats(p=>[c,...p]); setActiveChat(c); setShowCreateGroup(false); setGroupNameInput(''); setGroupDescInput(''); }); }} className="px-4 py-2 bg-white text-black rounded-lg font-bold">Create</button></div>
            </div>
          </div>
       )}
@@ -961,17 +1311,46 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   );
 };
 
-const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, handleGroupLogoUpload, setMiniProfileUser }: any) => (
-   <>
+const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, handleGroupLogoUpload, setMiniProfileUser, onUpdateDescription, myFriends, onAddMembers }: any) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDesc, setEditDesc] = useState(activeChat.description || '');
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
+
+  useEffect(() => {
+    setEditDesc(activeChat.description || '');
+    setIsEditing(false);
+    setShowAddMemberModal(false);
+    setSelectedToAdd([]);
+  }, [activeChat.id]);
+
+  const handleSave = () => {
+    onUpdateDescription(editDesc);
+    setIsEditing(false);
+  };
+  
+  const handleAddSubmit = () => {
+      onAddMembers(selectedToAdd);
+      setShowAddMemberModal(false);
+      setSelectedToAdd([]);
+  };
+
+  const isAdmin = activeChat.type === 'group' && (activeChat.admins?.includes(user.username) || user.username === 'night');
+
+  // Filter friends who are NOT already in the chat
+  const eligibleFriends = (myFriends || []).filter((f: string) => !activeChat.participants.includes(f));
+
+  return (
+    <>
        <div className="h-14 border-b border-zinc-900 flex items-center px-4 font-bold text-white text-base bg-black/50 backdrop-blur hidden md:flex">{activeChat.type === 'dm' ? 'User Info' : 'Channel Info'}</div>
        <div className="p-6 flex flex-col items-center border-b border-zinc-900 relative">
           <div className="w-24 h-24 rounded-full bg-zinc-900 mb-3 border-4 border-black ring-1 ring-zinc-800 flex items-center justify-center overflow-hidden relative group">
              {activeChat.type === 'group' ? (
                  activeChat.avatar ? <img src={activeChat.avatar} className="w-full h-full object-cover" /> : <Hash className="w-10 h-10 text-zinc-600" />
              ) : (
-                 <img src={profilesCache[activeChat.participants.find(p=>p!==user.username)||'']?.avatar} className="w-full h-full object-cover"/>
+                 <img src={profilesCache[activeChat.participants.find((p: string) => p !== user.username)||'']?.avatar} className="w-full h-full object-cover"/>
              )}
-             {activeChat.type === 'group' && (activeChat.admins?.includes(user.username) || user.username === 'night') && (
+             {activeChat.type === 'group' && isAdmin && (
                  <>
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                         <Camera className="w-6 h-6 text-white" />
@@ -980,11 +1359,51 @@ const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, han
                  </>
              )}
           </div>
-          <h3 className="font-bold text-white text-xl text-center leading-tight">{activeChat.name}</h3>
-          {activeChat.id === OFFICIAL_CHAT_ID && <span className="text-blue-400 text-xs mt-1 flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20"><VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" /> Verified</span>}
+          <h3 className="font-bold text-white text-xl text-center leading-tight mb-1">{activeChat.name}</h3>
+          
+          {activeChat.type === 'group' && (
+             <div className="w-full mt-2 text-center">
+                 {isEditing ? (
+                     <div className="flex flex-col gap-2 animate-fade-in">
+                         <textarea 
+                            value={editDesc} 
+                            onChange={(e) => setEditDesc(e.target.value)}
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs text-zinc-300 outline-none resize-none focus:border-zinc-700"
+                            placeholder="Add a description..."
+                            rows={3}
+                         />
+                         <div className="flex justify-center gap-2">
+                             <button onClick={() => setIsEditing(false)} className="px-3 py-1 text-[10px] text-zinc-500 hover:text-white">Cancel</button>
+                             <button onClick={handleSave} className="px-3 py-1 bg-white text-black text-[10px] font-bold rounded hover:bg-zinc-200">Save</button>
+                         </div>
+                     </div>
+                 ) : (
+                     <div className="relative group/desc">
+                         <p className="text-sm text-zinc-500 leading-relaxed px-2">
+                            {activeChat.description || <span className="italic opacity-50">No description</span>}
+                         </p>
+                         {isAdmin && (
+                            <button onClick={() => { setEditDesc(activeChat.description || ''); setIsEditing(true); }} className="mt-2 text-[10px] text-zinc-600 hover:text-zinc-400 flex items-center justify-center gap-1 w-full opacity-0 group-hover/desc:opacity-100 transition-opacity">
+                                <Edit2 className="w-3 h-3" /> Edit Description
+                            </button>
+                         )}
+                     </div>
+                 )}
+             </div>
+          )}
+
+          {activeChat.id === OFFICIAL_CHAT_ID && <span className="text-blue-400 text-xs mt-3 flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20"><VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" /> Verified</span>}
        </div>
        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          <div className="text-[10px] font-bold text-zinc-600 uppercase mb-3 tracking-wider">Participants — {activeChat.participants.length}</div>
+          <div className="flex items-center justify-between mb-3">
+             <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider">Participants — {activeChat.participants.length}</div>
+             {isAdmin && activeChat.type === 'group' && (
+                 <button onClick={() => setShowAddMemberModal(true)} className="p-1 text-zinc-500 hover:text-white bg-zinc-900 rounded hover:bg-zinc-800 transition-colors" title="Add Members">
+                    <UserPlus className="w-3 h-3" />
+                 </button>
+             )}
+          </div>
+          
           {activeChat.participants.map((p: string) => (
              <div key={p} className="flex items-center gap-3 mb-2 p-2 hover:bg-zinc-900/50 rounded-lg cursor-pointer group transition-colors" onClick={() => setMiniProfileUser(p)}>
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 overflow-hidden">
@@ -994,7 +1413,37 @@ const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, han
              </div>
           ))}
        </div>
-   </>
-);
+
+       {/* Add Member Modal */}
+       {showAddMemberModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-4" onClick={() => setShowAddMemberModal(false)}>
+             <div className="bg-black border border-zinc-800 rounded-2xl p-6 w-full max-w-sm animate-scale-in shadow-2xl" onClick={e => e.stopPropagation()}>
+                <h3 className="text-white font-bold mb-4 uppercase text-xs">Add Participants</h3>
+                {eligibleFriends.length === 0 ? (
+                    <div className="text-center text-zinc-500 text-sm py-4">
+                        All your friends are already here!
+                    </div>
+                ) : (
+                    <div className="max-h-48 overflow-y-auto mb-4 bg-zinc-950 rounded-xl p-2 border border-zinc-900 custom-scrollbar">
+                        {eligibleFriends.map((f: string) => (
+                            <label key={f} className="flex items-center gap-2 p-2 hover:bg-zinc-900 rounded cursor-pointer">
+                                <input type="checkbox" className="accent-white" checked={selectedToAdd.includes(f)} onChange={e => e.target.checked ? setSelectedToAdd(p => [...p, f]) : setSelectedToAdd(p => p.filter(x => x !== f))} />
+                                <span className="text-zinc-300 text-sm font-medium">{f}</span>
+                            </label>
+                        ))}
+                    </div>
+                )}
+                <div className="flex justify-end gap-2">
+                    <button onClick={() => setShowAddMemberModal(false)} className="px-4 py-2 text-zinc-500 text-xs font-bold hover:text-white">Cancel</button>
+                    {eligibleFriends.length > 0 && (
+                        <button onClick={handleAddSubmit} disabled={selectedToAdd.length === 0} className="px-4 py-2 bg-white text-black rounded-lg text-xs font-bold disabled:opacity-50">Add</button>
+                    )}
+                </div>
+             </div>
+          </div>
+       )}
+    </>
+  );
+};
 
 export default Dashboard;

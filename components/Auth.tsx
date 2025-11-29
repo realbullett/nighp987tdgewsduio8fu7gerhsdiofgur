@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
 import { Lock, User as UserIcon, Moon, Camera, Upload, AlertTriangle, ArrowRight, Loader2, Check, Sparkles } from 'lucide-react';
@@ -76,6 +77,134 @@ const Starfield = () => {
     };
   }, []);
   return <canvas ref={canvasRef} className="fixed inset-0 z-0 bg-black pointer-events-none" />;
+};
+
+// --- Floating Astronauts Component ---
+const FloatingAstronauts = () => {
+  return (
+    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+      <style>{`
+        @keyframes float-drift-1 {
+          0% { transform: translate(-10vw, 10vh) rotate(5deg); }
+          50% { transform: translate(40vw, -10vh) rotate(15deg); }
+          100% { transform: translate(-10vw, 10vh) rotate(5deg); }
+        }
+        @keyframes float-drift-2 {
+          0% { transform: translate(110vw, 60vh) rotate(-10deg) scale(0.7); }
+          100% { transform: translate(-20vw, 20vh) rotate(40deg) scale(0.7); }
+        }
+        @keyframes float-drift-3 {
+          0% { transform: translate(50vw, 110vh) rotate(180deg) scale(0.5); }
+          100% { transform: translate(20vw, -20vh) rotate(200deg) scale(0.5); }
+        }
+        @keyframes tumble {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .astro-1 { animation: float-drift-1 45s ease-in-out infinite; }
+        .astro-2 { animation: float-drift-2 60s linear infinite; }
+        .astro-3 { animation: float-drift-3 50s linear infinite; }
+        .tumble-slow { animation: tumble 20s linear infinite; }
+      `}</style>
+
+      {/* Astronaut 1 - Close Drifter */}
+      <div className="absolute top-1/4 left-1/4 astro-1 opacity-20">
+         <div className="relative w-12 h-16 tumble-slow">
+            {/* Backpack */}
+            <div className="absolute -right-2 top-3 w-4 h-8 bg-zinc-700 rounded-r-md"></div>
+            {/* Body */}
+            <div className="absolute inset-0 bg-zinc-300 rounded-2xl flex flex-col items-center shadow-[inset_-2px_-2px_6px_rgba(0,0,0,0.4)] border border-zinc-400">
+                {/* Helmet */}
+                <div className="w-8 h-8 mt-2 bg-black rounded-full border-4 border-zinc-400 overflow-hidden relative shadow-inner">
+                    <div className="absolute top-1 right-2 w-2 h-2 bg-white rounded-full opacity-40 blur-[1px]"></div>
+                </div>
+                {/* Suit Detail */}
+                <div className="w-6 h-1 bg-zinc-400 mt-2 rounded-full"></div>
+                <div className="w-2 h-2 bg-red-500 rounded-full mt-1 animate-pulse"></div>
+            </div>
+            {/* Limbs (Simple Shapes) */}
+            <div className="absolute -left-1 top-4 w-2 h-6 bg-zinc-300 rounded-full -rotate-12 border border-zinc-400"></div>
+            <div className="absolute -right-1 top-4 w-2 h-6 bg-zinc-300 rounded-full rotate-12 border border-zinc-400"></div>
+         </div>
+      </div>
+
+      {/* Astronaut 2 - Far Passerby */}
+      <div className="absolute top-0 left-0 astro-2 opacity-10 blur-[1px]">
+          <div className="relative w-10 h-14">
+            <div className="absolute -left-1 top-2 w-2 h-6 bg-zinc-600 rounded-l-md"></div>
+            <div className="absolute inset-0 bg-zinc-400 rounded-xl flex flex-col items-center border border-zinc-500">
+                <div className="w-6 h-6 mt-1.5 bg-zinc-900 rounded-full border-2 border-zinc-400"></div>
+            </div>
+          </div>
+      </div>
+
+      {/* Astronaut 3 - Vertical Drifter */}
+      <div className="absolute top-0 left-0 astro-3 opacity-10 blur-[2px]">
+          <div className="relative w-8 h-10">
+             <div className="absolute inset-0 bg-zinc-500 rounded-lg flex flex-col items-center">
+                 <div className="w-5 h-5 mt-1 bg-black rounded-full border border-zinc-400"></div>
+             </div>
+          </div>
+      </div>
+    </div>
+  );
+};
+
+// --- 3D Waving Creature Component ---
+const WavingCreature = () => {
+  return (
+    <div className="relative w-24 h-24 flex items-center justify-center select-none pointer-events-none mb-2">
+      <style>{`
+        @keyframes wave-hand {
+          0% { transform: rotate(0deg); }
+          25% { transform: rotate(-20deg); }
+          50% { transform: rotate(10deg); }
+          75% { transform: rotate(-10deg); }
+          100% { transform: rotate(0deg); }
+        }
+        @keyframes float-body {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        @keyframes blink-eyes {
+          0%, 48%, 52%, 100% { transform: scaleY(1); }
+          50% { transform: scaleY(0.1); }
+        }
+        .creature-body { animation: float-body 4s ease-in-out infinite; }
+        .creature-hand { animation: wave-hand 2s ease-in-out infinite; transform-origin: bottom right; }
+        .creature-eye { animation: blink-eyes 4s infinite 2s; }
+      `}</style>
+
+      {/* Back Glow */}
+      <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full scale-75 animate-pulse"></div>
+
+      {/* Main Body Container */}
+      <div className="creature-body relative w-16 h-16">
+        
+        {/* Hand (Behind body initially or to side) */}
+        <div className="creature-hand absolute -right-4 top-4 w-6 h-6 bg-zinc-700 rounded-full border border-black/20 shadow-lg z-20 flex items-center justify-center">
+            <div className="w-4 h-4 bg-zinc-600 rounded-full opacity-50"></div>
+        </div>
+
+        {/* Sphere Body */}
+        <div className="w-full h-full rounded-full bg-gradient-to-br from-zinc-700 via-zinc-900 to-black shadow-[inset_-4px_-4px_10px_rgba(0,0,0,1),inset_2px_2px_8px_rgba(255,255,255,0.1)] border border-white/5 relative z-10 overflow-hidden">
+             {/* Noise Texture */}
+             <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
+             
+             {/* Eyes Container */}
+             <div className="absolute top-[30%] left-0 right-0 flex justify-center gap-3">
+                 <div className="creature-eye w-3 h-4 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
+                 <div className="creature-eye w-3 h-4 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
+             </div>
+             
+             {/* Mouth */}
+             <div className="absolute bottom-[25%] left-0 right-0 flex justify-center">
+                 <div className="w-2 h-1 bg-zinc-950 rounded-full opacity-50"></div>
+             </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const Auth: React.FC<AuthProps> = ({ onLogin }) => {
@@ -202,11 +331,10 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       return (
         <div className="relative flex flex-col items-center justify-center min-h-full w-full overflow-hidden text-zinc-200 font-sans selection:bg-white/20 p-4">
             <Starfield />
+            <FloatingAstronauts />
             <div className="relative z-10 w-full max-w-[400px] glass-panel rounded-3xl p-8 flex flex-col items-center shadow-2xl animate-fade-in-up">
                 <div className="flex flex-col items-center mb-8">
-                    <div className="w-16 h-16 rounded-full bg-black border border-zinc-800 flex items-center justify-center mb-4 shadow-lg">
-                        <Moon className="w-8 h-8 text-white fill-white" />
-                    </div>
+                    <WavingCreature />
                     <h1 className="text-3xl font-bold text-white tracking-tight">Identity</h1>
                     <p className="text-zinc-500 text-[10px] mt-2 font-bold tracking-[0.3em] uppercase">Required Setup</p>
                 </div>
@@ -236,6 +364,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   return (
     <div className="relative flex flex-col items-center justify-center h-full w-full overflow-y-auto overflow-x-hidden text-zinc-200 font-sans py-4">
       <Starfield />
+      <FloatingAstronauts />
       
       {/* Container is flex-col to allow buttons to sit below the card naturally */}
       <div className="relative w-full max-w-[400px] perspective-[1000px] z-10 px-4 my-auto shrink-0 flex flex-col gap-4">
@@ -248,9 +377,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 <div className="glass-panel rounded-3xl flex-1 shadow-2xl overflow-hidden flex flex-col relative border border-white/10">
                     <div className="flex-1 p-6 sm:p-8 flex flex-col items-center justify-center overflow-y-auto custom-scrollbar">
                         <div className="flex flex-col items-center mb-4 mt-2 shrink-0">
-                            <div className="w-16 h-16 rounded-full bg-black border border-zinc-800 flex items-center justify-center mb-4 shadow-xl">
-                                <Moon className="w-8 h-8 text-white fill-white" />
-                            </div>
+                            <WavingCreature />
                             <h1 className="text-3xl font-bold text-white tracking-tight">Night</h1>
                             <p className="text-zinc-500 text-[10px] mt-2 font-bold tracking-[0.3em] uppercase">Secure Access</p>
                         </div>
@@ -286,9 +413,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 <div className="glass-panel rounded-3xl flex-1 shadow-2xl overflow-hidden flex flex-col relative border border-white/10">
                     <div className="flex-1 p-6 sm:p-8 flex flex-col items-center justify-center overflow-y-auto custom-scrollbar">
                         <div className="flex flex-col items-center mb-4 mt-2 shrink-0">
-                            <div className="w-16 h-16 rounded-full bg-black border border-zinc-800 flex items-center justify-center mb-4 shadow-xl">
-                                <Moon className="w-8 h-8 text-white fill-white" />
-                            </div>
+                            <WavingCreature />
                             <h1 className="text-2xl font-bold text-white tracking-tight">New Signal</h1>
                             <p className="text-zinc-500 text-[10px] mt-1 font-bold tracking-[0.3em] uppercase">Join Network</p>
                         </div>

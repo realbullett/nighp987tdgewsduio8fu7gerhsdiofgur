@@ -1,4 +1,5 @@
 
+
 export interface User {
   username: string;
   isAuthenticated: boolean;
@@ -52,6 +53,7 @@ export interface ChatRoom {
   id: string;
   type: 'group' | 'dm';
   name: string;
+  description?: string; // Optional description for groups
   avatar?: string; // For groups
   participants: string[];
   admins?: string[]; // List of usernames who are admins
