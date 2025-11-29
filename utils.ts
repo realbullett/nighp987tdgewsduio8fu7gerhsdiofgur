@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { EncryptedFile, ChatMessage, ChatRoom, UserProfile, User, MessageContent } from './types';
 
@@ -98,6 +97,12 @@ export const decryptMessage = async (ivStr: string, dataStr: string, chatId: str
 export const resizeImage = (base64Str: string, maxWidth = 800, maxHeight = 800, quality = 0.7): Promise<string> => {
   return new Promise((resolve) => {
     if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image')) {
+        resolve(base64Str);
+        return;
+    }
+
+    // Bypass resizing for GIFs to preserve animation
+    if (base64Str.startsWith('data:image/gif')) {
         resolve(base64Str);
         return;
     }

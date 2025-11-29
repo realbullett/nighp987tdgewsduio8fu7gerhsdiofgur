@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment } from '../types';
 import { 
@@ -59,7 +58,7 @@ const MessageBubble = ({
   };
 
   return (
-    <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start items-start'} ${isSequence ? 'mt-0.5' : 'mt-6'} ${hasReactions ? 'mb-3' : ''} group animate-fade-in-up relative`}>
+    <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start items-start'} ${isSequence ? 'mt-0.5' : 'mt-6'} ${hasReactions ? 'mb-2' : ''} group animate-fade-in-up relative`}>
       {/* Avatar (Left side) - Only show if not a sequence */}
       {!isMe && (
          <div className="w-8 h-8 mr-3 flex-shrink-0 pt-0 items-start"> 
@@ -178,7 +177,7 @@ const MessageBubble = ({
 
           {/* ABSOLUTE REACTIONS - Positioned overlapping the bubble corners */}
           {hasReactions && (
-             <div className={`absolute -bottom-3 ${isMe ? 'left-2' : 'right-2'} flex gap-1 flex-wrap z-20`}>
+             <div className={`absolute -bottom-3 ${isMe ? 'left-[-10px]' : 'right-[-10px]'} flex gap-1 flex-wrap z-20`}>
                {Object.entries(content.reactions!).map(([emoji, users]) => (
                  <div key={emoji} className={`text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1 cursor-pointer hover:bg-zinc-800 transition-colors shadow-lg shadow-black/20 ${users.length > 0 ? 'flex' : 'hidden'} ${isMe ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-300'}`} title={users.join(', ')} onClick={(e) => { e.stopPropagation(); onReact(msg.id, emoji); }}>
                     <span>{emoji}</span>
@@ -823,7 +822,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
         
         {/* Input Area */}
         {activeChat && (
-          <div className="p-4 bg-black/80 backdrop-blur z-20 pb-[env(safe-area-inset-bottom)] box-content shrink-0">
+          <div className="p-4 pb-3 md:mb-0 bg-black/80 backdrop-blur z-20 pb-[env(safe-area-inset-bottom)] box-content shrink-0">
              {activeChat.id !== OFFICIAL_CHAT_ID || user.username === 'night' ? (
                 <div className="relative">
                    {attachments.length > 0 && (
