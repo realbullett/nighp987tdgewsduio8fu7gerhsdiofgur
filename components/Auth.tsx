@@ -200,7 +200,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
   if (step === 'SETUP_AVATAR') {
       return (
-        <div className="relative flex flex-col items-center justify-center min-h-screen w-full overflow-hidden text-zinc-200 font-sans selection:bg-white/20 p-4">
+        <div className="relative flex flex-col items-center justify-center min-h-full w-full overflow-hidden text-zinc-200 font-sans selection:bg-white/20 p-4">
             <Starfield />
             <div className="relative z-10 w-full max-w-[400px] glass-panel rounded-3xl p-8 flex flex-col items-center shadow-2xl animate-fade-in-up">
                 <div className="flex flex-col items-center mb-8">
@@ -232,107 +232,111 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       );
   }
 
-  // 3D Flip Container Logic
-  // Layout Fix: Responsive widths and heights for mobile
+  // Optimized Layout for Android/Mobile
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen w-full overflow-y-auto overflow-x-hidden text-zinc-200 font-sans py-4 sm:py-10">
+    <div className="relative flex flex-col items-center justify-center h-full w-full overflow-y-auto overflow-x-hidden text-zinc-200 font-sans py-4">
       <Starfield />
       
-      <div className="relative w-full max-w-[400px] min-h-[650px] sm:min-h-[700px] perspective-[1000px] z-10 px-4 my-auto">
-         <div className={`relative w-full h-full transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`} style={{ transformStyle: 'preserve-3d', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
+      {/* Container is flex-col to allow buttons to sit below the card naturally */}
+      <div className="relative w-full max-w-[400px] perspective-[1000px] z-10 px-4 my-auto shrink-0 flex flex-col gap-4">
+         
+         {/* The Flip Card Container - Using min-height instead of fixed height for Android safety */}
+         <div className={`relative w-full h-[550px] min-h-[500px] transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`} style={{ transformStyle: 'preserve-3d', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
             
             {/* FRONT: LOGIN */}
             <div className={`absolute w-full h-full backface-hidden flex flex-col ${step === 'REGISTER' ? 'pointer-events-none opacity-0' : 'opacity-100'}`} style={{ backfaceVisibility: 'hidden' }}>
-                <div className="glass-panel rounded-3xl p-6 sm:p-8 flex flex-col items-center flex-1 justify-center shadow-2xl">
-                    <div className="flex flex-col items-center mb-4 mt-4">
-                        <div className="w-16 h-16 rounded-full bg-black border border-zinc-800 flex items-center justify-center mb-4">
-                            <Moon className="w-8 h-8 text-white fill-white" />
-                        </div>
-                        <h1 className="text-3xl font-bold text-white tracking-tight">Night</h1>
-                        <p className="text-zinc-500 text-[10px] mt-2 font-bold tracking-[0.3em] uppercase">Secure Access</p>
-                    </div>
-                    {error && <div className="w-full mb-4 p-2 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded flex items-center gap-2"><AlertTriangle className="w-3 h-3"/>{error}</div>}
-                    
-                    <div className="w-full mb-8 text-center px-4">
-                        <p className="text-xs text-zinc-400 italic leading-relaxed">"In the silence of the void, your words are yours alone. <br/>Enter the cozy encryption of Night."</p>
-                    </div>
-
-                    <form onSubmit={handleAuthSubmit} className="w-full space-y-5">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Identity</label>
-                            <input type="text" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="username" />
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex justify-between items-center px-1">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase">Password</label>
-                            <button type="button" onClick={() => handleAiHelp('Password')} className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors">{loadingTip ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3" />} AI Hint</button>
+                <div className="glass-panel rounded-3xl flex-1 shadow-2xl overflow-hidden flex flex-col relative border border-white/10">
+                    <div className="flex-1 p-6 sm:p-8 flex flex-col items-center justify-center overflow-y-auto custom-scrollbar">
+                        <div className="flex flex-col items-center mb-4 mt-2 shrink-0">
+                            <div className="w-16 h-16 rounded-full bg-black border border-zinc-800 flex items-center justify-center mb-4 shadow-xl">
+                                <Moon className="w-8 h-8 text-white fill-white" />
                             </div>
-                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="••••••••" />
+                            <h1 className="text-3xl font-bold text-white tracking-tight">Night</h1>
+                            <p className="text-zinc-500 text-[10px] mt-2 font-bold tracking-[0.3em] uppercase">Secure Access</p>
                         </div>
-                        {geminiTip && <div className="bg-purple-900/20 border border-purple-500/30 p-2 rounded text-[10px] text-purple-200 animate-fade-in">{geminiTip}</div>}
-                        <button type="submit" disabled={loading} className="w-full h-12 mt-6 bg-white hover:bg-zinc-200 text-black font-bold rounded-xl flex items-center justify-center gap-2">
-                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Connect'}
-                        </button>
-                    </form>
-                </div>
-                <div className="mt-4 pb-4 text-center">
-                    <button type="button" onClick={toggleAuthMode} className="text-zinc-500 hover:text-white text-xs font-semibold tracking-wide py-2 px-4 hover:bg-zinc-900/50 rounded-full transition-colors">
-                        Create new identity
-                    </button>
+                        {error && <div className="w-full mb-4 p-2 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded flex items-center gap-2 shrink-0"><AlertTriangle className="w-3 h-3"/>{error}</div>}
+                        
+                        <div className="w-full mb-6 text-center px-2 shrink-0">
+                            <p className="text-xs text-zinc-400 italic leading-relaxed">"Privacy and cozy texting.<br/>In the silence of the void, your words are yours alone."</p>
+                        </div>
+
+                        <form onSubmit={handleAuthSubmit} className="w-full space-y-5">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Identity</label>
+                                <input type="text" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="username" />
+                            </div>
+                            <div className="space-y-1">
+                                <div className="flex justify-between items-center px-1">
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase">Password</label>
+                                <button type="button" onClick={() => handleAiHelp('Password')} className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors">{loadingTip ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3" />} AI Hint</button>
+                                </div>
+                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="••••••••" />
+                            </div>
+                            {geminiTip && <div className="bg-purple-900/20 border border-purple-500/30 p-2 rounded text-[10px] text-purple-200 animate-fade-in">{geminiTip}</div>}
+                            <button type="submit" disabled={loading} className="w-full h-12 mt-6 bg-white hover:bg-zinc-200 text-black font-bold rounded-xl flex items-center justify-center gap-2 shrink-0 shadow-lg">
+                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Connect'}
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
 
             {/* BACK: REGISTER */}
             <div className={`absolute w-full h-full backface-hidden flex flex-col rotate-y-180 ${step === 'LOGIN' ? 'pointer-events-none opacity-0' : 'opacity-100'}`} style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-                <div className="glass-panel rounded-3xl p-6 sm:p-8 flex flex-col items-center flex-1 justify-center shadow-2xl">
-                    <div className="flex flex-col items-center mb-4 mt-4">
-                        <div className="w-16 h-16 rounded-full bg-black border border-zinc-800 flex items-center justify-center mb-4">
-                            <Moon className="w-8 h-8 text-white fill-white" />
-                        </div>
-                        <h1 className="text-2xl font-bold text-white tracking-tight">New Signal</h1>
-                        <p className="text-zinc-500 text-[10px] mt-1 font-bold tracking-[0.3em] uppercase">Join Network</p>
-                    </div>
-                    {error && <div className="w-full mb-4 p-2 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded flex items-center gap-2"><AlertTriangle className="w-3 h-3"/>{error}</div>}
-
-                    <div className="w-full mb-6 text-center px-4">
-                        <p className="text-xs text-zinc-400 italic leading-relaxed">"Forge a new identity. No trackers, just starlight.<br/>Your secrets are safe in the dark."</p>
-                    </div>
-
-                    <form onSubmit={handleAuthSubmit} className="w-full space-y-4">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Identity</label>
-                            <input type="text" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="username" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Email (Optional)</label>
-                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="public contact" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Password</label>
-                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="••••••••" />
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex justify-between items-center px-1">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase">Confirm Password</label>
-                            <button type="button" onClick={() => handleAiHelp('Security')} className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors">{loadingTip ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3" />} AI Hint</button>
+                <div className="glass-panel rounded-3xl flex-1 shadow-2xl overflow-hidden flex flex-col relative border border-white/10">
+                    <div className="flex-1 p-6 sm:p-8 flex flex-col items-center justify-center overflow-y-auto custom-scrollbar">
+                        <div className="flex flex-col items-center mb-4 mt-2 shrink-0">
+                            <div className="w-16 h-16 rounded-full bg-black border border-zinc-800 flex items-center justify-center mb-4 shadow-xl">
+                                <Moon className="w-8 h-8 text-white fill-white" />
                             </div>
-                            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="••••••••" />
+                            <h1 className="text-2xl font-bold text-white tracking-tight">New Signal</h1>
+                            <p className="text-zinc-500 text-[10px] mt-1 font-bold tracking-[0.3em] uppercase">Join Network</p>
                         </div>
-                        {geminiTip && <div className="bg-purple-900/20 border border-purple-500/30 p-2 rounded text-[10px] text-purple-200 animate-fade-in">{geminiTip}</div>}
+                        {error && <div className="w-full mb-4 p-2 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded flex items-center gap-2 shrink-0"><AlertTriangle className="w-3 h-3"/>{error}</div>}
 
-                        <button type="submit" disabled={loading} className="w-full h-12 mt-6 bg-white hover:bg-zinc-200 text-black font-bold rounded-xl flex items-center justify-center gap-2">
-                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Initialize'}
-                        </button>
-                    </form>
-                </div>
-                <div className="mt-4 pb-4 text-center">
-                    <button type="button" onClick={toggleAuthMode} className="text-zinc-500 hover:text-white text-xs font-semibold tracking-wide py-2 px-4 hover:bg-zinc-900/50 rounded-full transition-colors">
-                        Return to login
-                    </button>
+                        <div className="w-full mb-4 text-center px-2 shrink-0">
+                            <p className="text-xs text-zinc-400 italic leading-relaxed">"Forge a new identity. No trackers, just starlight.<br/>Privacy and cozy texting for the night."</p>
+                        </div>
+
+                        <form onSubmit={handleAuthSubmit} className="w-full space-y-3">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Identity</label>
+                                <input type="text" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="username" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Email (Optional)</label>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="private contact" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Password</label>
+                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="••••••••" />
+                            </div>
+                            <div className="space-y-1">
+                                <div className="flex justify-between items-center px-1">
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase">Confirm Password</label>
+                                <button type="button" onClick={() => handleAiHelp('Security')} className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors">{loadingTip ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3" />} AI Hint</button>
+                                </div>
+                                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="••••••••" />
+                            </div>
+                            {geminiTip && <div className="bg-purple-900/20 border border-purple-500/30 p-2 rounded text-[10px] text-purple-200 animate-fade-in">{geminiTip}</div>}
+
+                            <button type="submit" disabled={loading} className="w-full h-12 mt-4 bg-white hover:bg-zinc-200 text-black font-bold rounded-xl flex items-center justify-center gap-2 shrink-0 shadow-lg">
+                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Initialize'}
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
 
          </div>
+
+         {/* Footer Separated from Glass Panel */}
+         <div className="text-center shrink-0 h-10 pb-[env(safe-area-inset-bottom)]">
+            <button type="button" onClick={toggleAuthMode} className="text-zinc-500 hover:text-white text-xs font-semibold tracking-wide py-2 px-4 hover:bg-zinc-900/50 rounded-full transition-colors">
+                {step === 'LOGIN' ? 'Create new identity' : 'Return to login'}
+            </button>
+         </div>
+
       </div>
     </div>
   );

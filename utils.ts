@@ -151,24 +151,39 @@ export const detectLinks = (text: string): string[] => {
 const getEmail = (username: string) => `${username}@obsidian.chat`;
 
 export const getCurrentUser = async (): Promise<User | null> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || !session.user) return null;
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+        console.warn("Session error:", sessionError);
+        return null;
+    }
+    if (!session || !session.user) return null;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('username, avatar')
-    .eq('id', session.user.id)
-    .single();
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('username, avatar')
+        .eq('id', session.user.id)
+        .maybeSingle(); // Safer than .single() for missing rows
 
-  if (profile) {
-    return {
-      username: profile.username,
-      isAuthenticated: true,
-      avatar: profile.avatar,
-      id: session.user.id
-    };
+    if (profileError) {
+        console.warn("Profile fetch error:", profileError);
+        // Fallback: if we have a session but no profile row, we might want to return null to force re-login/healing
+        return null; 
+    }
+
+    if (profile) {
+        return {
+        username: profile.username,
+        isAuthenticated: true,
+        avatar: profile.avatar,
+        id: session.user.id
+        };
+    }
+    return null;
+  } catch (e) {
+      console.error("Unexpected error in getCurrentUser", e);
+      return null;
   }
-  return null;
 };
 
 export const registerUser = async (username: string, password: string, avatarBase64: string, publicEmail?: string): Promise<void> => {

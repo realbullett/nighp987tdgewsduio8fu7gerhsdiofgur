@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment } from '../types';
 import { 
@@ -35,9 +36,9 @@ const VerifiedIcon = ({ className }: { className?: string }) => (
 // --- SUB-COMPONENTS ---
 
 const MessageBubble = ({ 
-  msg, isMe, senderProfile, chatId, onReact, isGroup, onDelete, onEdit, onProfileClick 
+  msg, isMe, senderProfile, chatId, onReact, isGroup, onDelete, onEdit, onProfileClick, isSequence, isLastInSequence
 }: { 
-  msg: ChatMessage, isMe: boolean, senderProfile?: UserProfile, chatId: string, onReact: (id: string, emoji: string) => void, isGroup: boolean, onDelete: (id: string) => void, onEdit: (id: string, newText: string) => void, onProfileClick: (username: string) => void 
+  msg: ChatMessage, isMe: boolean, senderProfile?: UserProfile, chatId: string, onReact: (id: string, emoji: string) => void, isGroup: boolean, onDelete: (id: string) => void, onEdit: (id: string, newText: string) => void, onProfileClick: (username: string) => void, isSequence: boolean, isLastInSequence: boolean
 }) => {
   let content: MessageContent = { text: msg.content };
   try {
@@ -50,6 +51,7 @@ const MessageBubble = ({
   const [showPicker, setShowPicker] = useState(false);
 
   const links = detectLinks(content.text);
+  const hasReactions = content.reactions && Object.keys(content.reactions).length > 0;
 
   const handleSaveEdit = () => {
     onEdit(msg.id, editText);
@@ -57,37 +59,41 @@ const MessageBubble = ({
   };
 
   return (
-    <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start items-start'} mb-6 group animate-fade-in-up relative`}>
-      {/* Avatar (Left side) */}
+    <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start items-start'} ${isSequence ? 'mt-0.5' : 'mt-6'} ${hasReactions ? 'mb-3' : ''} group animate-fade-in-up relative`}>
+      {/* Avatar (Left side) - Only show if not a sequence */}
       {!isMe && (
-         <div className="w-8 h-8 mr-3 flex-shrink-0 items-start pt-1">
-            <div onClick={() => onProfileClick(msg.sender)} className="w-8 h-8 rounded-full bg-zinc-950 border border-zinc-800 overflow-hidden cursor-pointer relative hover:scale-105 transition-transform" title={msg.sender}>
-              {senderProfile?.avatar ? (
-                <img src={senderProfile.avatar} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{msg.sender[0].toUpperCase()}</div>
-              )}
-            </div>
+         <div className="w-8 h-8 mr-3 flex-shrink-0 pt-0 items-start"> 
+            {!isSequence && (
+              <div onClick={() => onProfileClick(msg.sender)} className="w-8 h-8 rounded-full bg-zinc-950 border border-zinc-800 overflow-hidden cursor-pointer relative hover:scale-105 transition-transform items-start" title={msg.sender}>
+                {senderProfile?.avatar ? (
+                  <img src={senderProfile.avatar} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-500 font-bold">{msg.sender[0].toUpperCase()}</div>
+                )}
+              </div>
+            )}
          </div>
       )}
       
       <div className={`max-w-[85%] md:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-        {!isMe && (
-          <span onClick={() => onProfileClick(msg.sender)} className="text-[10px] text-zinc-500 mb-1 ml-1 hover:text-zinc-300 cursor-pointer flex items-center gap-1">
-             {msg.sender}
-             {msg.sender === 'night' && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}
-          </span>
+        {!isMe && !isSequence && (
+          <div className="flex items-center gap-2 mb-1 ml-1">
+             <span onClick={() => onProfileClick(msg.sender)} className="text-[12px] font-bold text-white hover:underline cursor-pointer flex items-center gap-1">
+                {msg.sender}
+                {msg.sender === 'night' && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}
+             </span>
+          </div>
         )}
         
         <div className={`
-          relative p-3 rounded-2xl shadow-sm transition-all group/bubble
+          relative p-3 shadow-sm transition-all group/bubble
           ${isMe 
-            ? 'bg-zinc-800 text-zinc-100 rounded-br-sm' 
-            : 'bg-zinc-950 text-zinc-200 border border-zinc-800 rounded-bl-sm shadow-[0_0_10px_rgba(0,0,0,0.2)]'
+            ? `bg-zinc-800 text-zinc-100 ${isSequence ? (isLastInSequence ? 'rounded-tr-md rounded-br-2xl rounded-l-2xl' : 'rounded-tr-md rounded-br-sm rounded-l-2xl') : (isLastInSequence ? 'rounded-2xl rounded-br-2xl' : 'rounded-2xl rounded-br-sm')}` 
+            : `bg-zinc-950 text-zinc-200 border border-zinc-800 shadow-[0_0_10px_rgba(0,0,0,0.2)] ${isSequence ? (isLastInSequence ? 'rounded-tl-md rounded-bl-2xl rounded-r-2xl' : 'rounded-tl-md rounded-bl-sm rounded-r-2xl') : (isLastInSequence ? 'rounded-2xl rounded-bl-2xl' : 'rounded-2xl rounded-bl-sm')}`
           }
         `}>
-          {/* Menu Trigger */}
-          <div className={`absolute -top-4 ${isMe ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2'} opacity-0 group-hover/bubble:opacity-100 transition-opacity flex items-center gap-1 z-10`}>
+          {/* Menu Trigger - Desktop Hover Menu */}
+          <div className={`absolute -top-4 ${isMe ? 'left-0 -translate-x-full pr-2' : 'right-0 translate-x-full pl-2'} opacity-0 group-hover/bubble:opacity-100 transition-opacity flex items-center gap-1 z-10 md:flex hidden`}>
              <div className="bg-zinc-950 border border-zinc-800 rounded-full flex p-1 shadow-lg relative">
                {REACTION_EMOJIS.map(emoji => (
                  <button key={emoji} onClick={() => onReact(msg.id, emoji)} className="hover:scale-125 transition-transform px-1 text-sm">
@@ -169,17 +175,12 @@ const MessageBubble = ({
                </a>
              );
           })}
-        </div>
-        
-        {/* Footer */}
-        <div className={`flex items-center gap-2 mt-1 ${isMe ? 'mr-1 flex-row-reverse' : 'ml-1'}`}>
-          <div className={`text-[9px] opacity-50 font-medium`}>
-            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </div>
-          {content.reactions && Object.keys(content.reactions).length > 0 && (
-             <div className="flex gap-1 flex-wrap max-w-[200px]">
-               {Object.entries(content.reactions).map(([emoji, users]) => (
-                 <div key={emoji} className={`text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1 cursor-pointer hover:bg-zinc-800 transition-colors ${users.length > 0 ? 'flex' : 'hidden'} ${isMe ? 'bg-zinc-700 border-zinc-600 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-300'}`} title={users.join(', ')}>
+
+          {/* ABSOLUTE REACTIONS - Positioned overlapping the bubble corners */}
+          {hasReactions && (
+             <div className={`absolute -bottom-3 ${isMe ? 'left-2' : 'right-2'} flex gap-1 flex-wrap z-20`}>
+               {Object.entries(content.reactions!).map(([emoji, users]) => (
+                 <div key={emoji} className={`text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1 cursor-pointer hover:bg-zinc-800 transition-colors shadow-lg shadow-black/20 ${users.length > 0 ? 'flex' : 'hidden'} ${isMe ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-300'}`} title={users.join(', ')} onClick={(e) => { e.stopPropagation(); onReact(msg.id, emoji); }}>
                     <span>{emoji}</span>
                     <span className="font-bold">{users.length}</span>
                  </div>
@@ -187,12 +188,63 @@ const MessageBubble = ({
              </div>
           )}
         </div>
+        
+        {/* Footer */}
+        <div className={`flex items-center gap-2 mt-1 ${isMe ? 'mr-1 flex-row-reverse' : 'ml-1'}`}>
+          {isLastInSequence ? (
+            <div className={`text-[9px] opacity-50 font-medium flex items-center gap-1`}>
+                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <button 
+                  onClick={() => setShowPicker(!showPicker)} 
+                  className="md:hidden text-zinc-500 hover:text-white p-2 -my-2"
+                >
+                  <Smile className="w-3 h-3" />
+                </button>
+            </div>
+          ) : (
+             // Show reaction button on sequence messages for mobile access
+             <button 
+                onClick={() => setShowPicker(!showPicker)} 
+                className="md:hidden text-zinc-500 hover:text-white p-2 -my-2 opacity-50"
+             >
+                <Smile className="w-3 h-3" />
+             </button>
+          )}
+
+          {/* Mobile Reaction Picker Popup (Fixed Modal) */}
+          {showPicker && (
+              <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm md:hidden" onClick={() => setShowPicker(false)}>
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-[90%] max-w-[320px] shadow-2xl animate-scale-in" onClick={e => e.stopPropagation()}>
+                      <div className="text-center mb-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">React</div>
+                      <div className="grid grid-cols-6 gap-3 mb-6">
+                          {REACTION_EMOJIS.map(emoji => (
+                              <button key={emoji} onClick={() => { onReact(msg.id, emoji); setShowPicker(false); }} className="text-3xl hover:bg-zinc-800 p-2 rounded-xl transition-colors flex items-center justify-center bg-black/50 border border-zinc-800/50">
+                                  {emoji}
+                              </button>
+                          ))}
+                      </div>
+                      <div className="h-px bg-zinc-800 my-4"></div>
+                      <div className="grid grid-cols-8 gap-2 h-48 overflow-y-auto custom-scrollbar p-1">
+                          {MORE_EMOJIS.map(e => (
+                              <button key={e} onClick={() => { onReact(msg.id, e); setShowPicker(false); }} className="text-xl hover:bg-zinc-800 rounded-lg p-2 flex items-center justify-center">{e}</button>
+                          ))}
+                      </div>
+                      {isMe && (
+                          <div className="mt-4 flex gap-3 pt-4 border-t border-zinc-800">
+                              <button onClick={() => { setIsEditing(true); setShowPicker(false); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800 rounded-xl text-sm font-bold text-white hover:bg-zinc-700 transition-colors"><Edit2 className="w-4 h-4"/> Edit</button>
+                              <button onClick={() => { onDelete(msg.id); setShowPicker(false); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 text-red-400 rounded-xl text-sm font-bold hover:bg-red-500/20 transition-colors"><Trash className="w-4 h-4"/> Delete</button>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
-// --- MINI PROFILE POPUP ---
+// ... (MiniProfile logic kept same)
 const MiniProfile = ({ username, onClose, onMessage }: { username: string, onClose: () => void, onMessage: (user: string) => void }) => {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     useEffect(() => { 
@@ -244,8 +296,6 @@ const MiniProfile = ({ username, onClose, onMessage }: { username: string, onClo
     );
 };
 
-// --- MAIN DASHBOARD ---
-
 interface Toast {
   id: number;
   message: string;
@@ -273,6 +323,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [miniProfileUser, setMiniProfileUser] = useState<string | null>(null);
   const [closedChatIds, setClosedChatIds] = useState<Set<string>>(new Set());
   const [showMobileInfo, setShowMobileInfo] = useState(false);
+  const [showInputEmoji, setShowInputEmoji] = useState(false);
 
   // Settings State
   const [settingsBanner, setSettingsBanner] = useState('');
@@ -298,7 +349,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
      setToasts(prev => [...prev, { id, message, type }]);
      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
   };
-
+  
   const refreshData = async () => {
     const [profile, chats] = await Promise.all([
       getUserProfile(user.username),
@@ -421,7 +472,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   }, [activeChat?.id]);
 
   useLayoutEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }); }, [messages, activeChat?.id]);
-
+  
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if ((!inputText.trim() && attachments.length === 0) || !activeChat) return;
@@ -483,7 +534,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
      }));
      try { await addMessageReaction(activeChat.id, messageId, emoji, user.username); } catch (e) {}
   };
-
+  
   const handleFriendRemove = async (friend: string) => {
       if (confirm(`Remove ${friend} from contacts?`)) {
           await removeFriend(user.username, friend);
@@ -548,10 +599,10 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
   const totalUnreadLabel = totalUnread > 99 ? '99+' : totalUnread.toString();
 
-  if (loadingInitial) return <div className="h-screen w-full bg-black flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-zinc-500"/></div>;
+  if (loadingInitial) return <div className="h-full w-full bg-black flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-zinc-500"/></div>;
 
   return (
-    <div className="flex h-screen bg-black text-zinc-200 overflow-hidden font-sans relative">
+    <div className="flex h-full w-full bg-black text-zinc-200 overflow-hidden font-sans relative">
       
       <div className="absolute top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
          {toasts.map(t => (
@@ -564,17 +615,18 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
 
       {miniProfileUser && <MiniProfile key={miniProfileUser} username={miniProfileUser} onClose={() => setMiniProfileUser(null)} onMessage={handleMessageUser} />}
 
-      {/* SIDEBAR: Visible on desktop always. Visible on mobile ONLY if no active chat. */}
       <aside className={`md:flex flex-col w-full md:w-[320px] bg-black border-r border-zinc-900 transition-all ${activeChat ? 'hidden' : 'flex'}`}>
-        <div className="flex p-2 gap-1 border-b border-zinc-900 bg-black/50">
-           <button onClick={() => setSidebarTab('chats')} className={`flex-1 py-2 text-[11px] font-bold rounded transition-colors relative flex items-center justify-center gap-2 ${sidebarTab === 'chats' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
-              CHATS
-              {totalUnread > 0 && <span className="bg-red-500 text-white text-[9px] px-1 rounded-full">{totalUnreadLabel}</span>}
-           </button>
-           <button onClick={() => { setSidebarTab('contacts'); refreshData(); }} className={`flex-1 py-2 text-[11px] font-bold rounded transition-colors relative ${sidebarTab === 'contacts' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
-             CONTACTS
-             {(myProfile?.incomingRequests?.length || 0) > 0 && <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
-           </button>
+        <div className="flex pt-[env(safe-area-inset-top)] border-b border-zinc-900 bg-black/50 min-h-[3.5rem] items-end">
+           <div className="flex w-full px-2 pb-2 gap-1">
+             <button onClick={() => setSidebarTab('chats')} className={`flex-1 py-2 text-[11px] font-bold rounded transition-colors relative flex items-center justify-center gap-2 ${sidebarTab === 'chats' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                CHATS
+                {totalUnread > 0 && <span className="bg-red-500 text-white text-[9px] px-1 rounded-full">{totalUnreadLabel}</span>}
+             </button>
+             <button onClick={() => { setSidebarTab('contacts'); refreshData(); }} className={`flex-1 py-2 text-[11px] font-bold rounded transition-colors relative ${sidebarTab === 'contacts' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
+               CONTACTS
+               {(myProfile?.incomingRequests?.length || 0) > 0 && <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+             </button>
+           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5 custom-scrollbar">
@@ -612,7 +664,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                    <button 
                      key={chat.id}
                      onClick={() => setActiveChat(chat)}
-                     className={`w-full text-left p-2 rounded-xl mx-0.5 flex items-center gap-3 transition-all group relative ${isActive ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-900/50 text-zinc-500'} ${unread > 0 ? 'bg-zinc-900/30 border-l-2 border-purple-500 pl-3' : ''}`}
+                     className={`w-full text-left p-2 rounded-xl mx-0.5 flex items-center gap-3 transition-all group relative ${isActive ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-900/50 text-zinc-500'} ${unread > 0 ? 'bg-zinc-900/30 border-l-2 border-purple-500 pl-3 shadow-[inset_10px_0_20px_-10px_rgba(168,85,247,0.1)]' : ''}`}
                    >
                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border overflow-hidden relative ${isActive ? 'border-zinc-700 bg-zinc-800' : 'border-zinc-900 bg-black'}`}>
                         {displayAvatar ? (
@@ -683,7 +735,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
            )}
         </div>
 
-        <div className="h-14 bg-black flex items-center px-3 border-t border-zinc-900 justify-between shrink-0">
+        <div className="h-14 bg-black flex items-center px-3 border-t border-zinc-900 justify-between shrink-0 pb-[env(safe-area-inset-bottom)] box-content">
             <div className="flex items-center gap-3 overflow-hidden hover:bg-zinc-900/50 p-1.5 rounded-lg cursor-pointer transition-colors" onClick={() => setShowSettings(true)}>
                <div className="w-9 h-9 rounded-full bg-zinc-900 overflow-hidden border border-zinc-800">
                   {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : user.username[0]}
@@ -702,8 +754,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
         </div>
       </aside>
 
-      {/* MAIN CHAT AREA: Visible on desktop always. Visible on mobile ONLY if active chat. */}
-      <main className={`flex-1 flex-col relative min-w-0 bg-black ${activeChat ? 'flex' : 'hidden md:flex'}`}> 
+      <main className={`flex-1 flex-col relative min-w-0 bg-black h-full ${activeChat ? 'flex' : 'hidden md:flex'}`}> 
         <div className="absolute inset-0 z-0 bg-transparent pointer-events-none">
            {[...Array(20)].map((_, i) => (
               <div key={i} className="absolute rounded-full bg-white opacity-20 animate-pulse" 
@@ -711,7 +762,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
               />
            ))}
         </div>
-        <header className="h-14 flex items-center justify-between px-4 border-b border-zinc-900 bg-black/80 backdrop-blur-md shadow-sm z-20 cursor-default">
+        <header className="h-14 flex items-center justify-between px-4 border-b border-zinc-900 bg-black/80 backdrop-blur-md shadow-sm z-20 cursor-default pt-[env(safe-area-inset-top)] box-content shrink-0">
           <div className="flex items-center gap-3">
              <button onClick={() => setActiveChat(null)} className="md:hidden text-zinc-400 p-1"><ChevronLeft className="w-6 h-6"/></button>
              <div className="flex items-center gap-3" onClick={() => setShowMobileInfo(true)}>
@@ -734,17 +785,45 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-6 z-10 custom-scrollbar flex flex-col">
-          {activeChat ? messages.map((m) => (
-             <MessageBubble 
-               key={m.id} msg={m} isMe={m.sender === user.username} senderProfile={profilesCache[m.sender]} chatId={activeChat.id} onReact={handleReaction} isGroup={activeChat.type === 'group'} onDelete={() => deleteMessage(m.id).then(()=>setMessages(p=>p.filter(x=>x.id!==m.id)))} onEdit={(id, txt) => updateMessage(activeChat.id, id, { text: txt }).then(()=>setMessages(p=>p.map(x=>x.id===id ? {...x, content: JSON.stringify({...JSON.parse(x.content), text: txt})} : x)))}
-               onProfileClick={setMiniProfileUser}
-             />
-          )) : <div className="flex flex-col items-center justify-center h-full text-zinc-800"><Moon className="w-16 h-16 mb-4 opacity-20" /><p className="text-xs tracking-widest uppercase">Encrypted Feed Offline</p></div>}
+          {activeChat ? (
+          (() => {
+             // Explicit sort to ensure grouping works even if messages arrive out of order via realtime
+             const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp);
+             
+             return sortedMessages.map((m, i) => {
+                 const prevMessage = sortedMessages[i - 1];
+                 const isSequence = prevMessage && prevMessage.sender === m.sender && (m.timestamp - prevMessage.timestamp < 2 * 60 * 1000); 
+
+                 const nextMessage = sortedMessages[i + 1];
+                 // isLastInSequence determines if the timestamp footer is shown. 
+                 // It is true if: no next message, OR next message is different sender, OR next message is > 2 mins later.
+                 const isLastInSequence = !nextMessage || nextMessage.sender !== m.sender || (nextMessage.timestamp - m.timestamp >= 2 * 60 * 1000);
+
+                 return (
+                   <MessageBubble 
+                     key={m.id} 
+                     msg={m} 
+                     isMe={m.sender === user.username} 
+                     senderProfile={profilesCache[m.sender]} 
+                     chatId={activeChat.id} 
+                     onReact={handleReaction} 
+                     isGroup={activeChat.type === 'group'} 
+                     onDelete={() => deleteMessage(m.id).then(()=>setMessages(p=>p.filter(x=>x.id!==m.id)))} 
+                     onEdit={(id, txt) => updateMessage(activeChat.id, id, { text: txt }).then(()=>setMessages(p=>p.map(x=>x.id===id ? {...x, content: JSON.stringify({...JSON.parse(x.content), text: txt})} : x)))}
+                     onProfileClick={setMiniProfileUser}
+                     isSequence={!!isSequence}
+                     isLastInSequence={isLastInSequence}
+                   />
+                 );
+             });
+          })()
+          ) : <div className="flex flex-col items-center justify-center h-full text-zinc-800"><Moon className="w-16 h-16 mb-4 opacity-20" /><p className="text-xs tracking-widest uppercase">Encrypted Feed Offline</p></div>}
           <div ref={messagesEndRef} className="h-1" />
         </div>
-
+        
+        {/* Input Area */}
         {activeChat && (
-          <div className="p-4 bg-black/80 backdrop-blur z-20">
+          <div className="p-4 bg-black/80 backdrop-blur z-20 pb-[env(safe-area-inset-bottom)] box-content shrink-0">
              {activeChat.id !== OFFICIAL_CHAT_ID || user.username === 'night' ? (
                 <div className="relative">
                    {attachments.length > 0 && (
@@ -761,6 +840,18 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                       <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"><Paperclip className="w-5 h-5" /></button>
                       <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} multiple />
                       <textarea ref={textAreaRef} value={inputText} onChange={e => { setInputText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }} onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} rows={1} placeholder={`Message #${activeChat.name}`} className="flex-1 bg-transparent border-none text-zinc-200 resize-none py-2 max-h-32 min-h-[24px] custom-scrollbar placeholder-zinc-600 outline-none" style={{ outline: 'none', boxShadow: 'none' }} />
+                      
+                      <div className="relative">
+                          <button type="button" onClick={() => setShowInputEmoji(!showInputEmoji)} className="p-2 text-zinc-500 hover:text-white"><Smile className="w-5 h-5"/></button>
+                          {showInputEmoji && (
+                              <div className="absolute bottom-full right-0 mb-2 bg-zinc-950 border border-zinc-800 rounded-xl p-2 w-64 grid grid-cols-8 gap-1 shadow-2xl z-50 h-64 overflow-y-auto custom-scrollbar">
+                                  {MORE_EMOJIS.map(e => (
+                                      <button key={e} type="button" onClick={() => { setInputText(prev => prev + e); setShowInputEmoji(false); }} className="p-1 hover:bg-zinc-800 rounded text-xl">{e}</button>
+                                  ))}
+                              </div>
+                          )}
+                      </div>
+
                       {inputText.trim() || attachments.length > 0 ? <button type="submit" className="p-2 rounded hover:bg-zinc-800 text-white transition-colors"><Send className="w-4 h-4" /></button> : null}
                    </form>
                 </div>
@@ -769,17 +860,15 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
         )}
       </main>
 
-      {/* CHANNEL INFO: Desktop Sidebar OR Mobile Modal */}
+      {/* CHANNEL INFO */}
       {activeChat && (
         <>
-            {/* Desktop View */}
-            <aside className="hidden md:flex w-[260px] bg-black border-l border-zinc-900 flex-col z-30 relative shrink-0">
+            <aside className="hidden md:flex w-[260px] bg-black border-l border-zinc-900 flex-col z-30 relative shrink-0 pt-[env(safe-area-inset-top)]">
                <ChannelInfoContent activeChat={activeChat} user={user} profilesCache={profilesCache} groupLogoRef={groupLogoRef} handleGroupLogoUpload={handleGroupLogoUpload} setMiniProfileUser={setMiniProfileUser} />
             </aside>
 
-            {/* Mobile View (Modal) */}
             {showMobileInfo && (
-                <div className="fixed inset-0 z-[60] bg-black md:hidden animate-fade-in flex flex-col">
+                <div className="fixed inset-0 z-[60] bg-black md:hidden animate-fade-in flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
                     <div className="h-14 flex items-center px-4 border-b border-zinc-900">
                          <button onClick={() => setShowMobileInfo(false)} className="mr-4"><ChevronLeft className="w-6 h-6 text-zinc-400" /></button>
                          <h3 className="text-white font-bold">Info</h3>
@@ -845,6 +934,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
          </div>
       )}
 
+      {/* Modals for Add Friend / Create Group */}
       {showAddFriend && (
          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-4">
            <div className="bg-black border border-zinc-800 rounded-2xl p-6 w-full max-w-sm animate-scale-in">

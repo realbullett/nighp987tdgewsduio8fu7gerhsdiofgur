@@ -7,16 +7,36 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --vh: 1vh;
+      }
+      
       html, body {
-        height: 100dvh; /* Dynamic Viewport Height for mobile browsers */
+        height: 100%;
+        width: 100%;
         margin: 0;
         padding: 0;
         background-color: #000000;
         color: #e4e4e7; /* Zinc 200 */
-        overflow: hidden;
-        overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
+        overflow: hidden; /* Lock body scroll */
+        position: fixed; /* Critical for Android keyboard stability */
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        overscroll-behavior-y: none;
         -webkit-tap-highlight-color: transparent;
       }
+      
+      #root {
+        height: 100%;
+        height: calc(var(--vh, 1vh) * 100);
+        width: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
       body {
         font-family: 'Inter', sans-serif;
         -webkit-font-smoothing: antialiased;
@@ -99,6 +119,18 @@
         }
       }
     </style>
+    <script>
+      // Viewport Height Fix for Mobile Browsers (Android/iOS)
+      function setVh() {
+        let vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      }
+      setVh();
+      window.addEventListener('resize', setVh);
+      window.addEventListener('orientationchange', () => {
+         setTimeout(setVh, 100);
+      });
+    </script>
     <script type="importmap">
     {
       "imports": {
