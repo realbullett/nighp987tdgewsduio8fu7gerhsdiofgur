@@ -542,6 +542,9 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   // IMPORTANT: Track messages in Ref to allow global listener to check for dupes without re-running effect
   const messagesRef = useRef<ChatMessage[]>([]);
   const activeChannelRef = useRef<RealtimeChannel | null>(null);
+  const myProfileRef = useRef<UserProfile | null>(null);
+
+  useEffect(() => { myProfileRef.current = myProfile; }, [myProfile]);
 
   const addToast = (message: string, type: Toast['type'] = 'info') => {
      const id = Date.now();
@@ -677,7 +680,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   }, [activeChat?.id]);
 
 
-  // --- GLOBAL DATABASE SUBSCRIPTION (For Background / Sidebar Updates) ---
+  // --- GLOBAL DATABASE SUBSCRIPTION (For Background / Sidebar / Friends Updates) ---
   useEffect(() => {
     const handleMessageEvent = async (payload: any) => {
        const eventType = payload.eventType;
@@ -773,8 +776,19 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
        const eventType = payload.eventType;
        const newRecord = payload.new;
        
-       // Handle CHATS Table Updates (Avatars, Descriptions)
-       if (eventType === 'UPDATE' || eventType === 'INSERT') {
+       // Handle NEW CHATS (e.g. Someone added you to a group)
+       if (eventType === 'INSERT') {
+           if (newRecord.participants.includes(user.username)) {
+               // Check if we already have it (Optimistic creation)
+               if (!myChatsRef.current.some(c => c.id === newRecord.id)) {
+                   setMyChats(prev => [newRecord, ...prev]);
+                   addToast(`Added to ${newRecord.name || 'a new chat'}`, 'info');
+               }
+           }
+       }
+
+       // Handle CHATS Table Updates (Avatars, Descriptions, Members)
+       if (eventType === 'UPDATE') {
            const updatedChat = newRecord as ChatRoom;
            // If we are part of this chat
            if (updatedChat.participants.includes(user.username)) {
@@ -782,14 +796,93 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                if (activeChatIdRef.current === updatedChat.id) {
                    setActiveChat(prev => prev ? { ...prev, ...updatedChat } : null);
                }
+               
+               // Fetch profiles for new members if needed
+               const newMembers = updatedChat.participants.filter(p => !Object.keys(profilesCache).includes(p));
+               if (newMembers.length > 0) {
+                   getProfiles(newMembers).then(p => setProfilesCache(prev => ({...prev, ...p})));
+               }
            }
        }
     };
 
-    const unsub = subscribeToGlobalMessages(handleMessageEvent, handleChatEvent);
+    const handleFriendEvent = async (payload: any) => {
+        const eventType = payload.eventType;
+        const newRecord = payload.new;
+        const oldRecord = payload.old;
+
+        // NEW FRIEND REQUEST
+        if (eventType === 'INSERT') {
+            if (newRecord.receiver === user.username) {
+                setMyProfile(prev => prev ? {
+                    ...prev,
+                    incomingRequests: [...prev.incomingRequests, newRecord.sender]
+                } : null);
+                
+                // Fetch sender profile immediately
+                const profiles = await getProfiles([newRecord.sender]);
+                setFriendProfiles(prev => ({...prev, ...profiles}));
+                addToast(`New friend request from ${newRecord.sender}`, 'info');
+                try { audioRef.current.play(); } catch(e){}
+            }
+        }
+
+        // FRIEND REQUEST STATUS CHANGE (Accepted)
+        if (eventType === 'UPDATE') {
+            // Case A: You accepted them (handled optimistically, but this ensures sync)
+            // Case B: They accepted you
+            if (newRecord.status === 'accepted') {
+                const friendName = newRecord.sender === user.username ? newRecord.receiver : newRecord.sender;
+                
+                // Add to friends list if not already there
+                setMyProfile(prev => {
+                    if (!prev) return null;
+                    if (prev.friends.includes(friendName)) return prev;
+                    return { ...prev, friends: [...prev.friends, friendName] };
+                });
+
+                // Remove from pending lists
+                setMyProfile(prev => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        incomingRequests: prev.incomingRequests.filter(r => r !== friendName),
+                        outgoingRequests: prev.outgoingRequests.filter(r => r !== friendName)
+                    };
+                });
+                
+                // Fetch profile
+                const profiles = await getProfiles([friendName]);
+                setFriendProfiles(prev => ({...prev, ...profiles}));
+
+                if (newRecord.sender === user.username) {
+                     addToast(`${friendName} accepted your request`, 'success');
+                }
+            }
+        }
+
+        // FRIEND REMOVED / REQUEST REJECTED
+        if (eventType === 'DELETE') {
+            const sender = oldRecord.sender;
+            const receiver = oldRecord.receiver;
+            const otherPerson = sender === user.username ? receiver : sender;
+
+            setMyProfile(prev => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    friends: prev.friends.filter(f => f !== otherPerson),
+                    incomingRequests: prev.incomingRequests.filter(f => f !== otherPerson),
+                    outgoingRequests: prev.outgoingRequests.filter(f => f !== otherPerson)
+                };
+            });
+        }
+    };
+
+    const unsub = subscribeToGlobalMessages(handleMessageEvent, handleChatEvent, handleFriendEvent);
 
     return () => { unsub(); };
-  }, []);
+  }, [user.username]); // Re-subscribe if user changes (rare)
 
   // Fetch history when switching chats
   useEffect(() => {
@@ -906,10 +999,37 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
      try { await addMessageReaction(activeChat.id, messageId, emoji, user.username); } catch (e) {}
   };
   
+  // OPTIMISTIC FRIEND ACTIONS
+  const handleAcceptFriend = async (req: string) => {
+      // 1. Optimistic UI
+      setMyProfile(prev => prev ? {
+          ...prev,
+          incomingRequests: prev.incomingRequests.filter(r => r !== req),
+          friends: [...prev.friends, req]
+      } : null);
+
+      // 2. DB Update
+      await acceptFriendRequest(user.username, req);
+      
+      // 3. Refresh (optional to sync avatars etc)
+      // refreshData(); 
+  };
+
+  const handleRejectFriend = async (req: string) => {
+      setMyProfile(prev => prev ? {
+          ...prev,
+          incomingRequests: prev.incomingRequests.filter(r => r !== req)
+      } : null);
+      await rejectFriendRequest(user.username, req);
+  };
+  
   const handleFriendRemove = async (friend: string) => {
       if (confirm(`Remove ${friend} from contacts?`)) {
+          setMyProfile(prev => prev ? {
+              ...prev,
+              friends: prev.friends.filter(f => f !== friend)
+          } : null);
           await removeFriend(user.username, friend);
-          refreshData();
       }
   };
 
@@ -941,11 +1061,30 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
           chat = {
               id: chatId, type: 'dm', name: targetUsername, participants: [user.username, targetUsername], avatar: ''
           };
+          // Optimistically add chat
           setMyChats(p => [chat!, ...p]);
       }
       setMiniProfileUser(null);
       setActiveChat(chat);
       setSidebarTab('chats');
+  };
+  
+  const handleCreateGroup = async () => {
+      setShowCreateGroup(false);
+      // Optimistic Chat Creation is hard because we need the real ID for other users to find it?
+      // Actually we generate ID in frontend, so we can be optimistic!
+      
+      // BUT `createGroupChat` function does the logic. Let's wrap it.
+      try {
+          const newChat = await createGroupChat(groupNameInput, groupDescInput, user.username, selectedFriendsForGroup);
+          
+          setMyChats(p => [newChat, ...p]);
+          setActiveChat(newChat);
+          
+          setGroupNameInput('');
+          setGroupDescInput('');
+          setSelectedFriendsForGroup([]);
+      } catch(e) { console.error(e); }
   };
 
   const handleSaveProfile = async () => {
@@ -1039,7 +1178,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                 CHATS
                 {totalUnread > 0 && <span className="bg-red-500 text-white text-[9px] px-1 rounded-full">{totalUnreadLabel}</span>}
              </button>
-             <button onClick={() => { setSidebarTab('contacts'); refreshData(); setSearchQuery(''); }} className={`flex-1 py-2 text-[11px] font-bold rounded transition-colors relative ${sidebarTab === 'contacts' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
+             <button onClick={() => { setSidebarTab('contacts'); setSearchQuery(''); }} className={`flex-1 py-2 text-[11px] font-bold rounded transition-colors relative ${sidebarTab === 'contacts' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
                CONTACTS
                {(myProfile?.incomingRequests?.length || 0) > 0 && <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
              </button>
@@ -1166,8 +1305,8 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                                      <span className="text-sm text-zinc-300 font-bold">{req}</span>
                                  </div>
                                  <div className="flex gap-1">
-                                   <button onClick={() => { acceptFriendRequest(user.username, req).then(refreshData); }} className="p-1.5 bg-green-500/10 text-green-400 rounded-lg hover:bg-green-500/20"><Check className="w-3 h-3"/></button>
-                                   <button onClick={() => { rejectFriendRequest(user.username, req).then(refreshData); }} className="p-1.5 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20"><X className="w-3 h-3"/></button>
+                                   <button onClick={() => handleAcceptFriend(req)} className="p-1.5 bg-green-500/10 text-green-400 rounded-lg hover:bg-green-500/20"><Check className="w-3 h-3"/></button>
+                                   <button onClick={() => handleRejectFriend(req)} className="p-1.5 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20"><X className="w-3 h-3"/></button>
                                  </div>
                                </div>
                             )
@@ -1475,7 +1614,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                     <label key={f} className="flex items-center gap-2 p-2 hover:bg-zinc-900 rounded cursor-pointer"><input type="checkbox" className="accent-white" onChange={e => e.target.checked ? setSelectedFriendsForGroup(p=>[...p,f]) : setSelectedFriendsForGroup(p=>p.filter(x=>x!==f))} /><span className="text-zinc-300 text-sm font-medium">{f}</span></label>
                  ))}
               </div>
-              <div className="flex justify-end gap-2"><button onClick={() => setShowCreateGroup(false)} className="px-4 py-2 text-zinc-500">Cancel</button><button onClick={() => { createGroupChat(groupNameInput, groupDescInput, user.username, selectedFriendsForGroup).then(c => { setMyChats(p=>[c,...p]); setActiveChat(c); setShowCreateGroup(false); setGroupNameInput(''); setGroupDescInput(''); }); }} className="px-4 py-2 bg-white text-black rounded-lg font-bold">Create</button></div>
+              <div className="flex justify-end gap-2"><button onClick={() => setShowCreateGroup(false)} className="px-4 py-2 text-zinc-500">Cancel</button><button onClick={handleCreateGroup} className="px-4 py-2 bg-white text-black rounded-lg font-bold">Create</button></div>
            </div>
          </div>
       )}

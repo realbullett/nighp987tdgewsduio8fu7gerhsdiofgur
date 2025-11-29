@@ -651,12 +651,17 @@ export const addMessageReaction = async (chatId: string, messageId: string, emoj
 };
 
 // --- SUBSCRIPTIONS ---
-export const subscribeToGlobalMessages = (onMessageEvent: (payload: any) => void, onChatEvent: (payload: any) => void) => {
+export const subscribeToGlobalMessages = (
+    onMessageEvent: (payload: any) => void, 
+    onChatEvent: (payload: any) => void,
+    onFriendEvent: (payload: any) => void
+) => {
     // We create a SINGLE channel but attach multiple handlers.
     // This allows us to listen to ALL changes relevant to the chat experience.
     const channel = supabase.channel('global-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, onMessageEvent)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, onChatEvent)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, onFriendEvent)
         .subscribe();
         
     return () => { supabase.removeChannel(channel); };
