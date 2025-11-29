@@ -150,40 +150,52 @@ export const detectLinks = (text: string): string[] => {
 
 const getEmail = (username: string) => `${username}@obsidian.chat`;
 
-export const getCurrentUser = async (): Promise<User | null> => {
+// NEW: Robust Session Restoration
+export const restoreSession = async (): Promise<User | null> => {
   try {
+    // 1. Check local session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) {
-        console.warn("Session error:", sessionError);
-        return null;
-    }
-    if (!session || !session.user) return null;
-
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('username, avatar')
-        .eq('id', session.user.id)
-        .maybeSingle(); 
-
-    if (profileError) {
-        console.warn("Profile fetch error:", profileError);
-        return null; 
-    }
-
-    if (profile) {
-        return {
-        username: profile.username,
-        isAuthenticated: true,
-        avatar: profile.avatar,
-        id: session.user.id
-        };
-    }
-    return null;
-  } catch (e) {
-      console.error("Unexpected error in getCurrentUser", e);
+    
+    if (sessionError || !session || !session.user) {
       return null;
+    }
+
+    // 2. Verify against database (Source of Truth)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    // 3. Handle Corruption: Session exists, but Profile doesn't.
+    if (profileError || !profile) {
+      console.warn("Detected corrupt session. Purging.");
+      await purgeSession();
+      return null;
+    }
+
+    // 4. Success
+    return {
+      username: profile.username,
+      isAuthenticated: true,
+      avatar: profile.avatar,
+      id: session.user.id
+    };
+
+  } catch (e) {
+    console.error("Critical error restoring session:", e);
+    await purgeSession();
+    return null;
   }
 };
+
+export const purgeSession = async () => {
+  await supabase.auth.signOut();
+  localStorage.clear(); // Nuclear option to ensure clean state
+};
+
+// Legacy support for Chat component (though restoreSession replaces its initial use)
+export const getCurrentUser = restoreSession; 
 
 export const registerUser = async (username: string, password: string, avatarBase64: string, publicEmail?: string): Promise<void> => {
   const email = getEmail(username);
@@ -236,18 +248,14 @@ export const loginUser = async (username: string, password: string) => {
   
   let profile = await getUserProfile(username);
   
-  // Robustness Fix: If profile is missing or fetch fails, create a temporary/default one 
-  // to ensure the login flow completes instead of hanging.
+  // Robustness Fix: Auto-Heal Profile if missing
   if (!profile) {
     const defaultAvatar = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-    // Attempt auto-heal
     await supabase.from('profiles').upsert([{ id: data.user.id, username, avatar: defaultAvatar, updated_at: new Date() }]);
-    
-    // Retry fetch
     profile = await getUserProfile(username);
     
-    // Failsafe: Construct a minimal profile object if DB is still unresponsive
     if (!profile) {
+        // Construct temp profile to allow UI to proceed
         profile = {
             id: data.user.id,
             username: username,
@@ -263,9 +271,7 @@ export const loginUser = async (username: string, password: string) => {
 };
 
 export const logoutUser = async () => {
-  await supabase.auth.signOut();
-  localStorage.removeItem('obsidian_current_user'); // Legacy cleanup
-  localStorage.clear(); // Ensure clean slate
+  await purgeSession();
 };
 
 export const getUserProfile = async (username: string): Promise<UserProfile | null> => {
