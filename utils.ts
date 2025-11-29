@@ -8,7 +8,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_LQrnUGOne0SsfZs
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     realtime: {
         params: {
-            eventsPerSecond: 10
+            eventsPerSecond: 20 // Increased for snappier feeling
         }
     }
 });
@@ -557,12 +557,18 @@ export const getMessages = async (chatId: string): Promise<ChatMessage[]> => {
   return decrypted;
 };
 
-export const sendMessage = async (chatId: string, sender: string, content: string, messageId?: string): Promise<ChatMessage> => {
+// NEW: Separation of concerns for Broadcast Architecture
+
+// 1. Prepare (Encrypt) - Used by Client before Broadcast
+export const prepareMessagePayload = async (chatId: string, content: string): Promise<EncryptedFile> => {
+    return await encryptMessage(content, chatId);
+};
+
+// 2. Persist (Save to DB) - Called in background or by fallback
+export const saveMessageToDB = async (chatId: string, sender: string, encryptedContent: EncryptedFile, messageId: string) => {
   if (chatId === WELCOME_CHAT_ID && sender !== 'night') {
     throw new Error("Only 'night' can post in the Official Night channel.");
   }
-
-  const encrypted = await encryptMessage(content, chatId);
   
   if (chatId.startsWith('dm_')) {
      const { data } = await supabase.from('chats').select('id').eq('id', chatId).single();
@@ -574,24 +580,28 @@ export const sendMessage = async (chatId: string, sender: string, content: strin
      }
   }
 
-  // Use client-provided ID or generate one to ensure collision resistance during optimistic updates
-  const id = messageId || crypto.randomUUID();
-
-  const { data, error } = await supabase.from('messages').insert({
-    id,
+  const { error } = await supabase.from('messages').insert({
+    id: messageId,
     chat_id: chatId,
     sender,
-    content: encrypted.data,
-    iv: encrypted.iv
-  }).select().single();
+    content: encryptedContent.data,
+    iv: encryptedContent.iv
+  });
 
   if (error) throw error;
+};
 
+// Legacy Wrapper for backward compatibility if needed, but updated to use new ID logic
+export const sendMessage = async (chatId: string, sender: string, content: string, messageId?: string): Promise<ChatMessage> => {
+  const encrypted = await prepareMessagePayload(chatId, content);
+  const id = messageId || crypto.randomUUID();
+  await saveMessageToDB(chatId, sender, encrypted, id);
+  
   return {
-    id: data.id,
-    sender: data.sender,
-    content,
-    timestamp: new Date(data.created_at).getTime()
+      id,
+      sender,
+      content,
+      timestamp: Date.now()
   };
 };
 

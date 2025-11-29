@@ -1,13 +1,13 @@
-
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment } from '../types';
 import { 
-  getMessages, sendMessage, getMyChats, getWelcomeChat,
+  getMessages, saveMessageToDB, prepareMessagePayload, getMyChats, getWelcomeChat,
   getUserProfile, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend,
   createGroupChat, updateAvatar, updateProfile, decryptMessage, resizeImage, detectLinks,
   getDMChatId, updateGroupAvatar, addMessageReaction, deleteMessage, updateMessage, subscribeToGlobalMessages,
-  getProfiles, updateGroupDescription, leaveGroup, addGroupMembers, fetchTenorGifs, TenorGif
+  getProfiles, updateGroupDescription, leaveGroup, addGroupMembers, fetchTenorGifs, TenorGif, supabase, fetchChatDetails
 } from '../utils';
+import { RealtimeChannel } from '@supabase/supabase-js';
 import { 
   Send, LogOut, MessageSquare, Users, Hash, 
   UserPlus, Menu, Info, X, Check, Camera, Paperclip, 
@@ -525,7 +525,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
 
   const [addFriendInput, setAddFriendInput] = useState('');
   const [groupNameInput, setGroupNameInput] = useState('');
-  const [groupDescInput, setGroupDescInput] = useState(''); // NEW state for group description
+  const [groupDescInput, setGroupDescInput] = useState(''); 
   const [selectedFriendsForGroup, setSelectedFriendsForGroup] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const groupLogoRef = useRef<HTMLInputElement>(null);
@@ -539,6 +539,9 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   // Refs for Global Subscriptions (prevents stale closure issues)
   const activeChatIdRef = useRef<string | null>(null);
   const myChatsRef = useRef<ChatRoom[]>([]);
+  // IMPORTANT: Track messages in Ref to allow global listener to check for dupes without re-running effect
+  const messagesRef = useRef<ChatMessage[]>([]);
+  const activeChannelRef = useRef<RealtimeChannel | null>(null);
 
   const addToast = (message: string, type: Toast['type'] = 'info') => {
      const id = Date.now();
@@ -615,28 +618,83 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
      }
   }, [activeChat?.id]);
 
-  // Update refs for the global subscription to use
+  // Sync refs for subscriptions
   useEffect(() => { activeChatIdRef.current = activeChat?.id || null; }, [activeChat]);
   useEffect(() => { myChatsRef.current = myChats; }, [myChats]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
-  // SINGLE GLOBAL REALTIME SUBSCRIPTION
+  // --- BROADCAST CHANNEL SUBSCRIPTION (For Active Chat Instant Speed) ---
   useEffect(() => {
-    const unsub = subscribeToGlobalMessages(async (payload) => {
+     if (!activeChat) return;
+
+     const channelId = `room:${activeChat.id}`;
+     // Join a dedicated channel for this chat to listen to broadcasts
+     const channel = supabase.channel(channelId);
+
+     channel
+       .on('broadcast', { event: 'message' }, async ({ payload }) => {
+          // 1. DEDUPLICATION: If we already have this message (via Optimistic or DB), ignore it
+          if (messagesRef.current.some(m => m.id === payload.id)) {
+              return;
+          }
+
+          // 2. Decrypt immediately
+          let contentStr = '';
+          try {
+              contentStr = await decryptMessage(payload.iv, payload.content, activeChat.id);
+          } catch(e) { console.error("Broadcast Decrypt Fail", e); }
+
+          const newMsg: ChatMessage = {
+              id: payload.id,
+              sender: payload.sender,
+              content: contentStr,
+              timestamp: new Date(payload.created_at).getTime()
+          };
+
+          // 3. Update Messages List
+          setMessages(prev => {
+              if (prev.some(m => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+          });
+
+          // 4. Update Chat Sidebar
+          setMyChats(prevChats => {
+             const updated = prevChats.map(c => c.id === activeChat.id ? { ...c, lastMessage: newMsg } : c);
+             return updated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
+          });
+          
+          try { audioRef.current.play(); } catch(e){}
+       })
+       .subscribe();
+
+     activeChannelRef.current = channel;
+
+     // Cleanup: Leave channel when switching chats
+     return () => {
+         supabase.removeChannel(channel);
+         activeChannelRef.current = null;
+     };
+  }, [activeChat?.id]);
+
+
+  // --- GLOBAL DATABASE SUBSCRIPTION (For Background / Sidebar Updates) ---
+  useEffect(() => {
+    const handleMessageEvent = async (payload: any) => {
        const eventType = payload.eventType;
        const newRecord = payload.new;
        const oldRecord = payload.old;
 
-       // Handle INSERT (New Messages)
+       // Handle INSERT (New Messages via DB)
        if (eventType === 'INSERT') {
           const chatId = newRecord.chat_id;
           const belongsToMyChat = myChatsRef.current.some(c => c.id === chatId);
           
           if (belongsToMyChat) {
-             // 1. Decrypt content immediately to update UI snippet
+             // 1. Decrypt
              let contentStr = '';
              try {
                 contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId);
-             } catch(e) { console.error("Realtime Decrypt Error", e); }
+             } catch(e) { }
 
              const newMessageObj: ChatMessage = {
                  id: newRecord.id,
@@ -645,36 +703,50 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                  timestamp: new Date(newRecord.created_at).getTime()
              };
 
-             // 2. If chat is open, update message list (avoid duplicates via ID check)
+             // 2. Update Active Chat (Check for duplicates first!)
              if (activeChatIdRef.current === chatId) {
                  setMessages(prev => {
+                     // If we already have it (from Broadcast or Optimistic), ignore DB event
                      if (prev.some(m => m.id === newMessageObj.id)) return prev;
                      return [...prev, newMessageObj];
                  });
              } else {
-                // If not open, increment unread
                 setUnreadCounts(prev => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
+                try { audioRef.current.play(); } catch(e){}
              }
 
-             // 3. CRITICAL: Update Chat List Last Message & Sort Order IMMEDIATELY
+             // 3. Update Sidebar (Always sync with DB truth)
              setMyChats(prevChats => {
                  const updatedChats = prevChats.map(chat => {
                      if (chat.id === chatId) {
-                         return { ...chat, lastMessage: newMessageObj };
+                         // Only update if timestamp is newer (avoids overwriting optimistic updates with old data)
+                         if (!chat.lastMessage || newMessageObj.timestamp >= chat.lastMessage.timestamp) {
+                             return { ...chat, lastMessage: newMessageObj };
+                         }
                      }
                      return chat;
                  });
-                 // Sort descending by timestamp so newest is always top
                  return updatedChats.sort((a, b) => {
                      const tA = a.lastMessage?.timestamp || 0;
                      const tB = b.lastMessage?.timestamp || 0;
                      return tB - tA;
                  });
              });
+          } else {
+              // Unknown chat (New DM or Group invite) -> Auto Fetch
+              const newChat = await fetchChatDetails(chatId);
+              if (newChat && newChat.participants.includes(user.username)) {
+                  // Decrypt initial message
+                  let contentStr = 'Encrypted Message';
+                  try { contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId); } catch {}
+                  
+                  const msg = { id: newRecord.id, sender: newRecord.sender, content: contentStr, timestamp: new Date(newRecord.created_at).getTime() };
+                  const chatWithMsg = { ...newChat, lastMessage: msg };
 
-             if (newRecord.sender !== user.username) {
-                 try { audioRef.current.play(); } catch(e){}
-             }
+                  setMyChats(prev => [chatWithMsg, ...prev]);
+                  setUnreadCounts(prev => ({ ...prev, [chatId]: 1 }));
+                  try { audioRef.current.play(); } catch(e){}
+              }
           }
        }
        
@@ -684,10 +756,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
            if (activeChatIdRef.current === chatId) {
                try {
                    const contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId);
-                   setMessages(prev => prev.map(m => m.id === newRecord.id ? {
-                       ...m,
-                       content: contentStr
-                   } : m));
+                   setMessages(prev => prev.map(m => m.id === newRecord.id ? { ...m, content: contentStr } : m));
                } catch(e) {}
            }
        }
@@ -698,17 +767,40 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                setMessages(prev => prev.filter(m => m.id !== oldRecord.id));
            }
        }
-    });
+    };
+
+    const handleChatEvent = async (payload: any) => {
+       const eventType = payload.eventType;
+       const newRecord = payload.new;
+       
+       // Handle CHATS Table Updates (Avatars, Descriptions)
+       if (eventType === 'UPDATE' || eventType === 'INSERT') {
+           const updatedChat = newRecord as ChatRoom;
+           // If we are part of this chat
+           if (updatedChat.participants.includes(user.username)) {
+               setMyChats(prev => prev.map(c => c.id === updatedChat.id ? { ...c, ...updatedChat, lastMessage: c.lastMessage } : c));
+               if (activeChatIdRef.current === updatedChat.id) {
+                   setActiveChat(prev => prev ? { ...prev, ...updatedChat } : null);
+               }
+           }
+       }
+    };
+
+    const unsub = subscribeToGlobalMessages(handleMessageEvent, handleChatEvent);
 
     return () => { unsub(); };
-  }, []); // Run ONCE on mount. Uses refs to access latest state.
+  }, []);
 
   // Fetch history when switching chats
   useEffect(() => {
     if (!activeChat) return;
     setUnreadCounts(prev => ({ ...prev, [activeChat.id]: 0 }));
-    getMessages(activeChat.id).then(setMessages);
-    // Note: No per-chat subscription here anymore. Global one handles it.
+    // Fetch latest DB messages to fill gaps
+    getMessages(activeChat.id).then(msgs => {
+        // Merge with any optimistic/broadcast messages we might already have? 
+        // Simpler: Just set them, but keep any that are newer than DB (rare edge case)
+        setMessages(msgs);
+    });
   }, [activeChat?.id]);
 
   useLayoutEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }); }, [messages, activeChat?.id]);
@@ -723,33 +815,56 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
     const payload: MessageContent = { text: textToSend, attachments: attachments.length > 0 ? attachments : undefined };
     const contentString = JSON.stringify(payload);
     
-    // Generate UUID client-side for strict deduping between Optimistic UI and Realtime Event
+    // 1. Generate ID Client-Side
     const tempId = crypto.randomUUID(); 
+    const timestamp = Date.now();
+    const isoTimestamp = new Date(timestamp).toISOString();
 
-    const optimisticMsg: ChatMessage = { id: tempId, sender: user.username, content: contentString, timestamp: Date.now() };
+    // 2. Optimistic UI Update (Immediate Display)
+    const optimisticMsg: ChatMessage = { id: tempId, sender: user.username, content: contentString, timestamp };
     
     setMessages(prev => [...prev, optimisticMsg]);
+    
+    // Update Sidebar Immediately
+    setMyChats(prev => {
+        const updated = prev.map(c => c.id === activeChat.id ? { ...c, lastMessage: optimisticMsg } : c);
+        return updated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
+    });
+
     if (!overrideText) {
         setInputText(''); setAttachments([]);
         if (textAreaRef.current) textAreaRef.current.style.height = 'auto';
     }
 
     try {
-      // Pass the pre-generated ID to the backend
-      const confirmedMsg = await sendMessage(activeChat.id, user.username, contentString, tempId);
+      // 3. Encrypt Payload
+      const encrypted = await prepareMessagePayload(activeChat.id, contentString);
+
+      // 4. BROADCAST to peers via WebSocket (Fastest Path)
+      // This sends the message directly to other online users in this chat
+      if (activeChannelRef.current) {
+          await activeChannelRef.current.send({
+              type: 'broadcast',
+              event: 'message',
+              payload: {
+                  id: tempId,
+                  sender: user.username,
+                  content: encrypted.data,
+                  iv: encrypted.iv,
+                  chat_id: activeChat.id,
+                  created_at: isoTimestamp
+              }
+          });
+      }
+
+      // 5. Persist to DB (Background Sync)
+      // We don't await this to block UI, but we catch errors
+      await saveMessageToDB(activeChat.id, user.username, encrypted, tempId);
       
-      // We don't need to swap IDs since we used the real UUID for the optimistic update.
-      // But we can update timestamp/metadata if needed.
-      setMessages(prev => prev.map(m => m.id === tempId ? confirmedMsg : m));
-      
-      // Update Chat List instantly for "Me" as well
-      setMyChats(prev => {
-          const updated = prev.map(c => c.id === activeChat.id ? { ...c, lastMessage: confirmedMsg } : c);
-          return updated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
-      });
     } catch (err) {
-      setMessages(prev => prev.filter(m => m.id !== tempId));
-      if (!overrideText) setInputText(payload.text);
+      console.error("Failed to send", err);
+      // Rollback on failure (optional, but good UX)
+      // setMessages(prev => prev.filter(m => m.id !== tempId));
     }
   };
 
@@ -798,7 +913,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       }
   };
 
-  // UPDATED: Handle X button to Leave Group or Close DM
   const handleRemoveChat = async (e: React.MouseEvent, chat: ChatRoom) => {
       e.stopPropagation();
       
@@ -880,7 +994,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
     setActiveChat(updatedChat);
     setMyChats(prev => prev.map(c => c.id === activeChat.id ? updatedChat : c));
     addToast("Members added", "success");
-    // Also fetch profiles for new members to ensure avatar cache is warm
     getProfiles(newMembers).then(p => {
         setProfilesCache(prev => ({...prev, ...p}));
     });
