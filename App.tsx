@@ -11,40 +11,65 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
-    
-    const init = async () => {
-      try {
-        // Timeout promise: If getCurrentUser takes > 5s, we give up on waiting for the session check
-        // and let the user see the login screen. This fixes "infinite loading" on hosted apps.
-        const timeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Session check timed out")), 5000)
-        );
 
-        const u = await Promise.race([getCurrentUser(), timeout]) as User | null;
-        if (mounted && u) setUser(u);
-      } catch (e) {
-        console.warn("Session initialization fallback:", e);
+    const initializeSession = async () => {
+      try {
+        // 1. Check for existing session in local storage
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error || !session) {
+          if (mounted) setLoading(false);
+          return;
+        }
+
+        // 2. Validate session and fetch profile
+        const userProfile = await getCurrentUser();
+        
+        if (mounted) {
+          if (userProfile) {
+            setUser(userProfile);
+          } else {
+            // Critical: If we have a session but no profile (or invalid), 
+            // force sign out to clear stale tokens and prevent infinite loading loops.
+            await supabase.auth.signOut();
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error("Session initialization failed:", error);
+        if (mounted) {
+            await supabase.auth.signOut();
+            setUser(null);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
     };
-    init();
 
+    initializeSession();
+
+    // 3. Listen for auth changes (Login, Logout, Token Refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
-      
-      if (event === 'SIGNED_OUT') {
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        // Only fetch if we don't already have the user to prevent redundant calls
+        if (session) {
+            const u = await getCurrentUser();
+            if (mounted && u) {
+                setUser(u);
+                setLoading(false);
+            }
+        }
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        // Ensure we have the user profile data loaded
-        const u = await getCurrentUser();
-        if (mounted) setUser(u);
+        setLoading(false);
       }
     });
 
     return () => { 
-        mounted = false;
-        subscription.unsubscribe(); 
+      mounted = false;
+      subscription.unsubscribe(); 
     };
   }, []);
 
@@ -55,7 +80,7 @@ const App: React.FC = () => {
   );
 
   return user ? (
-    <Dashboard user={user} onLogout={() => supabase.auth.signOut()} />
+    <Dashboard user={user} onLogout={() => { setUser(null); supabase.auth.signOut(); }} />
   ) : (
     <Auth onLogin={setUser} />
   );

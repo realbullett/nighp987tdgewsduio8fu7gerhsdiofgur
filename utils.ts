@@ -163,11 +163,10 @@ export const getCurrentUser = async (): Promise<User | null> => {
         .from('profiles')
         .select('username, avatar')
         .eq('id', session.user.id)
-        .maybeSingle(); // Safer than .single() for missing rows
+        .maybeSingle(); 
 
     if (profileError) {
         console.warn("Profile fetch error:", profileError);
-        // Fallback: if we have a session but no profile row, we might want to return null to force re-login/healing
         return null; 
     }
 
@@ -236,11 +235,28 @@ export const loginUser = async (username: string, password: string) => {
   if (!data.user) throw new Error("Login failed.");
   
   let profile = await getUserProfile(username);
+  
+  // Robustness Fix: If profile is missing or fetch fails, create a temporary/default one 
+  // to ensure the login flow completes instead of hanging.
   if (!profile) {
-    // Auto-Heal: Profile missing but Auth exists. Create generic profile.
     const defaultAvatar = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+    // Attempt auto-heal
     await supabase.from('profiles').upsert([{ id: data.user.id, username, avatar: defaultAvatar, updated_at: new Date() }]);
+    
+    // Retry fetch
     profile = await getUserProfile(username);
+    
+    // Failsafe: Construct a minimal profile object if DB is still unresponsive
+    if (!profile) {
+        profile = {
+            id: data.user.id,
+            username: username,
+            avatar: defaultAvatar,
+            friends: [],
+            incomingRequests: [],
+            outgoingRequests: []
+        };
+    }
   }
 
   return { user: data.user, profile };
@@ -248,45 +264,51 @@ export const loginUser = async (username: string, password: string) => {
 
 export const logoutUser = async () => {
   await supabase.auth.signOut();
-  localStorage.removeItem('obsidian_current_user'); 
+  localStorage.removeItem('obsidian_current_user'); // Legacy cleanup
+  localStorage.clear(); // Ensure clean slate
 };
 
 export const getUserProfile = async (username: string): Promise<UserProfile | null> => {
-  const { data: profile } = await supabase.from('profiles').select('*').eq('username', username).single();
-  if (!profile) return null;
+  try {
+    const { data: profile, error } = await supabase.from('profiles').select('*').eq('username', username).single();
+    if (error || !profile) return null;
 
-  const { data: friendships } = await supabase
-    .from('friend_requests')
-    .select('sender, receiver')
-    .eq('status', 'accepted')
-    .or(`sender.eq.${username},receiver.eq.${username}`);
+    const { data: friendships } = await supabase
+        .from('friend_requests')
+        .select('sender, receiver')
+        .eq('status', 'accepted')
+        .or(`sender.eq.${username},receiver.eq.${username}`);
+        
+    const friends = (friendships || []).map((f: any) => f.sender === username ? f.receiver : f.sender);
+
+    const { data: incoming } = await supabase
+        .from('friend_requests')
+        .select('sender')
+        .eq('receiver', username)
+        .eq('status', 'pending');
+
+    const { data: outgoing } = await supabase
+        .from('friend_requests')
+        .select('receiver')
+        .eq('sender', username)
+        .eq('status', 'pending');
     
-  const friends = (friendships || []).map((f: any) => f.sender === username ? f.receiver : f.sender);
-
-  const { data: incoming } = await supabase
-    .from('friend_requests')
-    .select('sender')
-    .eq('receiver', username)
-    .eq('status', 'pending');
-
-  const { data: outgoing } = await supabase
-    .from('friend_requests')
-    .select('receiver')
-    .eq('sender', username)
-    .eq('status', 'pending');
-  
-  return {
-    id: profile.id,
-    username: profile.username,
-    avatar: profile.avatar,
-    banner: profile.banner,
-    bio: profile.bio,
-    public_email: profile.public_email,
-    show_email: profile.show_email,
-    friends,
-    incomingRequests: incoming?.map((r:any) => r.sender) || [],
-    outgoingRequests: outgoing?.map((r:any) => r.receiver) || []
-  };
+    return {
+        id: profile.id,
+        username: profile.username,
+        avatar: profile.avatar,
+        banner: profile.banner,
+        bio: profile.bio,
+        public_email: profile.public_email,
+        show_email: profile.show_email,
+        friends,
+        incomingRequests: incoming?.map((r:any) => r.sender) || [],
+        outgoingRequests: outgoing?.map((r:any) => r.receiver) || []
+    };
+  } catch (e) {
+      console.error("Error fetching user profile:", e);
+      return null;
+  }
 };
 
 export const updateProfile = async (username: string, updates: Partial<UserProfile>) => {
