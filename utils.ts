@@ -597,11 +597,13 @@ export const getMyChats = async (username: string): Promise<ChatRoom[]> => {
 };
 
 export const getMessages = async (chatId: string): Promise<ChatMessage[]> => {
+  // FIX: Fetch the LATEST messages (descending), then reverse them for display.
+  // Previously we fetched 'ascending' which grabs the OLDEST messages first.
   const { data } = await supabase
     .from('messages')
     .select('*')
     .eq('chat_id', chatId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false }) // Get newest first
     .limit(50); 
 
   if (!data) return [];
@@ -618,7 +620,8 @@ export const getMessages = async (chatId: string): Promise<ChatMessage[]> => {
       });
     } catch (e) { }
   }
-  return decrypted;
+  // Reverse to chronological order (Old -> New) for the UI
+  return decrypted.reverse();
 };
 
 // NEW: Separation of concerns for Broadcast Architecture

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment, UserStatus } from '../types';
 import { 
@@ -14,7 +15,7 @@ import {
   UserPlus, Menu, Info, X, Check, Camera, Paperclip, 
   Image as ImageIcon, ExternalLink, Settings, Link as LinkIcon, Moon, Sparkles, Loader2,
   ChevronLeft, Plus, Smile, MoreVertical, Trash, Lock, Edit2, Copy, File, Download, UserMinus, Image, Mail,
-  Search, Clapperboard, Flame, Gamepad2, Coffee, BookOpen, Music, ChevronRight, Circle
+  Search, Clapperboard, Flame, Gamepad2, Coffee, BookOpen, Music, ChevronRight, Circle, AlertTriangle
 } from 'lucide-react';
 
 interface ChatProps {
@@ -1127,8 +1128,8 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       
     } catch (err) {
       console.error("Failed to send", err);
-      // Rollback on failure (optional, but good UX)
-      // setMessages(prev => prev.filter(m => m.id !== tempId));
+      // Show error toast
+      addToast("Failed to save message to history", "alert");
     }
   };
 
@@ -1359,8 +1360,8 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       
       <div className="absolute top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
          {toasts.map(t => (
-            <div key={t.id} className="pointer-events-auto bg-zinc-900 border border-zinc-800 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-slide-in-right">
-               {t.type === 'success' ? <Check className="w-4 h-4 text-green-400" /> : <Info className="w-4 h-4 text-blue-400" />}
+            <div key={t.id} className={`pointer-events-auto border px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-slide-in-right ${t.type === 'alert' ? 'bg-red-950/90 border-red-900 text-red-200' : 'bg-zinc-900 border-zinc-800 text-white'}`}>
+               {t.type === 'success' ? <Check className="w-4 h-4 text-green-400" /> : (t.type === 'alert' ? <AlertTriangle className="w-4 h-4 text-red-400" /> : <Info className="w-4 h-4 text-blue-400" />)}
                <span className="text-sm font-medium">{t.message}</span>
             </div>
          ))}
@@ -1589,7 +1590,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                     </button>
                     <div className="h-px bg-zinc-900 my-1"></div>
                     <button onClick={() => handleChangeStatus('invisible')} className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded-lg flex items-center gap-3 text-xs font-bold text-zinc-300 hover:text-white">
-                        <StatusIndicator status="invisible" className="w-2.5 h-2.5" showInvisible /> Invisible
+                        <StatusIndicator status="invisible" className="w-2.5 h-2.5" /> Invisible
                     </button>
                 </div>
             )}
@@ -1878,7 +1879,29 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   );
 };
 
-const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, handleGroupLogoUpload, setMiniProfileUser, onUpdateDescription, myFriends, onAddMembers, onlineUsers }: any) => {
+const ChannelInfoContent = ({ 
+    activeChat, 
+    user, 
+    profilesCache, 
+    groupLogoRef, 
+    handleGroupLogoUpload, 
+    setMiniProfileUser, 
+    onUpdateDescription, 
+    myFriends, 
+    onAddMembers, 
+    onlineUsers 
+}: {
+    activeChat: ChatRoom;
+    user: User;
+    profilesCache: Record<string, UserProfile>;
+    groupLogoRef: React.RefObject<HTMLInputElement>;
+    handleGroupLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    setMiniProfileUser: (user: string | null) => void;
+    onUpdateDescription: (desc: string) => void;
+    myFriends: string[];
+    onAddMembers: (members: string[]) => void;
+    onlineUsers: Record<string, UserStatus>;
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editDesc, setEditDesc] = useState(activeChat.description || '');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
