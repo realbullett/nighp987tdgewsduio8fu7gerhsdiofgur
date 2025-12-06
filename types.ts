@@ -1,11 +1,11 @@
-
-
 export interface User {
   username: string;
   isAuthenticated: boolean;
   avatar?: string; // Base64 string
   id?: string; // Supabase UUID
 }
+
+export type UserStatus = 'online' | 'idle' | 'dnd' | 'invisible' | 'offline';
 
 export interface UserProfile {
   id: string;

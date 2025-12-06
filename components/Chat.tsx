@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment } from '../types';
+import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment, UserStatus } from '../types';
 import { 
   getMessages, saveMessageToDB, prepareMessagePayload, getMyChats, getWelcomeChat,
   getUserProfile, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend,
   createGroupChat, updateAvatar, updateProfile, decryptMessage, resizeImage, detectLinks,
   getDMChatId, updateGroupAvatar, addMessageReaction, deleteMessage, updateMessage, subscribeToGlobalMessages,
-  getProfiles, updateGroupDescription, leaveGroup, addGroupMembers, fetchTenorGifs, TenorGif, supabase, fetchChatDetails
+  getProfiles, updateGroupDescription, leaveGroup, addGroupMembers, fetchTenorGifs, TenorGif, supabase, fetchChatDetails, subscribeToPresence,
+  markChatRead, fetchReadStates
 } from '../utils';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { 
@@ -13,7 +14,7 @@ import {
   UserPlus, Menu, Info, X, Check, Camera, Paperclip, 
   Image as ImageIcon, ExternalLink, Settings, Link as LinkIcon, Moon, Sparkles, Loader2,
   ChevronLeft, Plus, Smile, MoreVertical, Trash, Lock, Edit2, Copy, File, Download, UserMinus, Image, Mail,
-  Search, Clapperboard, Flame
+  Search, Clapperboard, Flame, Gamepad2, Coffee, BookOpen, Music, ChevronRight, Circle
 } from 'lucide-react';
 
 interface ChatProps {
@@ -34,6 +35,24 @@ const VerifiedIcon = ({ className }: { className?: string }) => (
     </g>
   </svg>
 );
+
+const StatusIndicator = ({ status, className, showInvisible }: { status: UserStatus, className?: string, showInvisible?: boolean }) => {
+    let colorClass = 'bg-zinc-700'; // Default for offline
+    
+    if (status === 'online') colorClass = 'bg-green-500';
+    else if (status === 'idle') colorClass = 'bg-yellow-500';
+    else if (status === 'dnd') colorClass = 'bg-red-500';
+    else if (status === 'invisible') colorClass = 'bg-zinc-500';
+
+    if (status === 'invisible' && !showInvisible) return null;
+
+    return (
+        <div className={`rounded-full border-2 border-black ${colorClass} ${className} z-10`} title={status}>
+           {status === 'idle' && <div className="absolute top-0 left-0 w-2 h-2 bg-black rounded-full -ml-0.5 -mt-0.5"></div>}
+           {status === 'dnd' && <div className="w-full h-0.5 bg-black absolute top-1/2 left-0 -translate-y-1/2"></div>}
+        </div>
+    );
+};
 
 // --- 3D Sleeping Creature Component ---
 const SleepingCreature = () => {
@@ -117,6 +136,65 @@ const SleepingCreature = () => {
 };
 
 // --- SUB-COMPONENTS ---
+// ... (OnboardingModal, GifPicker, MessageBubble, MiniProfile - Unchanged)
+
+const OnboardingModal = ({ onCreateOwn, onTemplate, onSkip }: { onCreateOwn: () => void, onTemplate: (name: string, desc: string) => void, onSkip: () => void }) => {
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4">
+            <div className="w-full max-w-lg bg-black border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl animate-scale-in flex flex-col md:flex-row relative">
+                <button onClick={onSkip} className="absolute top-4 right-4 text-zinc-600 hover:text-white z-20"><X className="w-5 h-5"/></button>
+                
+                {/* Left Side (Visual) */}
+                <div className="w-full md:w-1/3 bg-zinc-900/50 p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-zinc-800 relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+                    <div className="relative z-10 transform scale-75 md:scale-90">
+                        <SleepingCreature />
+                    </div>
+                </div>
+
+                {/* Right Side (Content) */}
+                <div className="flex-1 p-6 md:p-8 flex flex-col">
+                    <h2 className="text-xl font-bold text-white mb-2 text-center md:text-left">Create Your First Haunt</h2>
+                    <p className="text-zinc-500 text-xs mb-6 text-center md:text-left">Your space to lurk, chat, and vibe with others. Make it yours.</p>
+
+                    <button 
+                        onClick={onCreateOwn}
+                        className="w-full p-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 flex items-center justify-between group transition-all mb-4"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-black border border-zinc-700 flex items-center justify-center">
+                                <Plus className="w-5 h-5 text-zinc-300" />
+                            </div>
+                            <span className="font-bold text-sm text-zinc-200 group-hover:text-white">Create My Own</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-white" />
+                    </button>
+
+                    <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3">Start from a template</div>
+
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
+                        <button onClick={() => onTemplate("Gaming Lounge", "A place for late night raids and ranked matches.")} className="w-full p-2 rounded-lg hover:bg-zinc-900 flex items-center gap-3 group transition-colors text-left">
+                            <Gamepad2 className="w-8 h-8 p-1.5 bg-purple-500/10 text-purple-400 rounded-lg" />
+                            <span className="text-sm font-medium text-zinc-400 group-hover:text-white">Gaming</span>
+                        </button>
+                        <button onClick={() => onTemplate("Late Night Chill", "Vibes, music, and quiet company.")} className="w-full p-2 rounded-lg hover:bg-zinc-900 flex items-center gap-3 group transition-colors text-left">
+                            <Coffee className="w-8 h-8 p-1.5 bg-yellow-500/10 text-yellow-400 rounded-lg" />
+                            <span className="text-sm font-medium text-zinc-400 group-hover:text-white">Friends & Chill</span>
+                        </button>
+                        <button onClick={() => onTemplate("Study Void", "Focus room for productive nights.")} className="w-full p-2 rounded-lg hover:bg-zinc-900 flex items-center gap-3 group transition-colors text-left">
+                            <BookOpen className="w-8 h-8 p-1.5 bg-blue-500/10 text-blue-400 rounded-lg" />
+                            <span className="text-sm font-medium text-zinc-400 group-hover:text-white">Study Group</span>
+                        </button>
+                    </div>
+                    
+                    <div className="mt-auto pt-4 text-center">
+                         <button onClick={onSkip} className="text-[10px] text-zinc-600 hover:text-zinc-400 font-bold">Skip for now</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const GifPicker = ({ onSelect, onClose }: { onSelect: (url: string) => void, onClose: () => void }) => {
     const [search, setSearch] = useState('');
@@ -167,7 +245,7 @@ const GifPicker = ({ onSelect, onClose }: { onSelect: (url: string) => void, onC
                     <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500" />
                     <input 
                         value={search}
-                        onChange={(e) => { setSearch(e.target.value); if(e.target.value) setActiveCategory('Search'); }}
+                        onChange={e => { setSearch(e.target.value); if(e.target.value) setActiveCategory('Search'); }}
                         className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-zinc-700 outline-none"
                         placeholder="Search Tenor GIFs..."
                         autoFocus
@@ -221,10 +299,22 @@ const GifPicker = ({ onSelect, onClose }: { onSelect: (url: string) => void, onC
     );
 };
 
-const MessageBubble = ({ 
+interface MessageBubbleProps {
+  msg: ChatMessage;
+  isMe: boolean;
+  senderProfile?: UserProfile;
+  chatId: string;
+  onReact: (id: string, emoji: string) => void;
+  isGroup: boolean;
+  onDelete: (id: string) => void;
+  onEdit: (id: string, newText: string) => void;
+  onProfileClick: (username: string) => void;
+  isSequence: boolean;
+  isLastInSequence: boolean;
+}
+
+const MessageBubble: React.FC<MessageBubbleProps> = ({ 
   msg, isMe, senderProfile, chatId, onReact, isGroup, onDelete, onEdit, onProfileClick, isSequence, isLastInSequence
-}: { 
-  msg: ChatMessage, isMe: boolean, senderProfile?: UserProfile, chatId: string, onReact: (id: string, emoji: string) => void, isGroup: boolean, onDelete: (id: string) => void, onEdit: (id: string, newText: string) => void, onProfileClick: (username: string) => void, isSequence: boolean, isLastInSequence: boolean
 }) => {
   let content: MessageContent = { text: msg.content };
   try {
@@ -431,7 +521,15 @@ const MessageBubble = ({
   );
 };
 
-const MiniProfile = ({ username, initialData, onClose, onMessage }: { username: string, initialData?: UserProfile, onClose: () => void, onMessage: (user: string) => void }) => {
+interface MiniProfileProps {
+  username: string;
+  initialData?: UserProfile;
+  onClose: () => void;
+  onMessage: (user: string) => void;
+  status: UserStatus;
+}
+
+const MiniProfile: React.FC<MiniProfileProps> = ({ username, initialData, onClose, onMessage, status }) => {
     const [profile, setProfile] = useState<UserProfile | null>(initialData || null);
     
     useEffect(() => { 
@@ -449,8 +547,11 @@ const MiniProfile = ({ username, initialData, onClose, onMessage }: { username: 
                 </div>
                 <div className="px-6 pb-6 pt-0 relative">
                     <div className="flex justify-between items-end -mt-10 mb-3 relative z-10">
-                        <div className="w-20 h-20 rounded-full bg-black border-4 border-black overflow-hidden">
-                            {profile?.avatar ? <img src={profile.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-600 font-bold text-xl">{username[0].toUpperCase()}</div>}
+                         <div className="relative w-20 h-20">
+                            <div className="w-full h-full rounded-full bg-black border-4 border-black overflow-hidden relative">
+                                {profile?.avatar ? <img src={profile.avatar} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-zinc-900 flex items-center justify-center text-zinc-600 font-bold text-xl">{username[0].toUpperCase()}</div>}
+                            </div>
+                            <StatusIndicator status={status} className="absolute bottom-1 right-1 w-5 h-5 border-4 border-black" />
                         </div>
                         <button onClick={() => onMessage(username)} className="mb-1 px-4 py-1.5 bg-white text-black text-xs font-bold rounded-full hover:bg-zinc-200 transition-colors flex items-center gap-1 shadow-lg">
                            <MessageSquare className="w-3 h-3" /> Message
@@ -512,6 +613,15 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [showMobileInfo, setShowMobileInfo] = useState(false);
   const [showInputEmoji, setShowInputEmoji] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  
+  // Presence State
+  const [userStatus, setUserStatus] = useState<UserStatus>('online');
+  const [onlineUsers, setOnlineUsers] = useState<Record<string, UserStatus>>({});
+  const presenceRef = useRef<{ updateStatus: (s: UserStatus) => Promise<void> } | null>(null);
+  
+  // Onboarding State
+  const [showOnboarding, setShowOnboarding] = useState(false);
   
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -551,6 +661,22 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
      setToasts(prev => [...prev, { id, message, type }]);
      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
   };
+
+  // PRESENCE SUBSCRIPTION
+  useEffect(() => {
+     const presence = subscribeToPresence(user.username, (users) => {
+         setOnlineUsers(users);
+     });
+     presenceRef.current = presence;
+     
+     return () => { presence.unsubscribe(); };
+  }, [user.username]);
+
+  const handleChangeStatus = (status: UserStatus) => {
+      setUserStatus(status);
+      presenceRef.current?.updateStatus(status);
+      setShowStatusMenu(false);
+  };
   
   const refreshData = async () => {
     const [profile, chats] = await Promise.all([
@@ -586,8 +712,35 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
         getMyChats(user.username)
       ]);
       
+      // Initial Sort (Crucial for offline loading)
+      const sortedChats = chats.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
+      setMyChats(sortedChats);
       setMyProfile(profile);
-      setMyChats(chats);
+      
+      // Compute Offline Unread Counts
+      try {
+          const reads = await fetchReadStates(user.username);
+          const counts: Record<string, number> = {};
+          
+          sortedChats.forEach(chat => {
+              const lastRead = reads[chat.id] || 0;
+              const lastMsgTime = chat.lastMessage?.timestamp || 0;
+              
+              // Only mark as unread if the last message is significantly newer than the read receipt
+              // This helps prevent clock skew issues where user reads a message at 12:00:00 but server says msg is 12:00:01
+              if (lastMsgTime > lastRead + 1000) { 
+                  counts[chat.id] = 1;
+              }
+          });
+          setUnreadCounts(counts);
+      } catch(e) { console.error(e); }
+
+      // Onboarding Check
+      const onboardingKey = `night_onboarding_completed_${user.username}`;
+      const hasCompletedOnboarding = localStorage.getItem(onboardingKey);
+      if (!hasCompletedOnboarding) {
+          setShowOnboarding(true);
+      }
       
       if (profile) {
           setSettingsAvatar(profile.avatar);
@@ -618,8 +771,11 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
          getProfiles(activeChat.participants).then(profiles => {
              setProfilesCache(prev => ({ ...prev, ...profiles }));
          });
+         // Mark as read immediately when opening, using the timestamp of the latest message
+         setUnreadCounts(prev => ({ ...prev, [activeChat.id]: 0 }));
+         markChatRead(activeChat.id, user.username, activeChat.lastMessage?.timestamp || 0);
      }
-  }, [activeChat?.id]);
+  }, [activeChat?.id, activeChat?.lastMessage?.timestamp]);
 
   // Sync refs for subscriptions
   useEffect(() => { activeChatIdRef.current = activeChat?.id || null; }, [activeChat]);
@@ -635,7 +791,8 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
      const channel = supabase.channel(channelId);
 
      channel
-       .on('broadcast', { event: 'message' }, async ({ payload }) => {
+       .on('broadcast', { event: 'message' }, async (event: any) => {
+          const payload = event.payload;
           // 1. DEDUPLICATION: If we already have this message (via Optimistic or DB), ignore it
           if (messagesRef.current.some(m => m.id === payload.id)) {
               return;
@@ -659,11 +816,14 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
               if (prev.some(m => m.id === newMsg.id)) return prev;
               return [...prev, newMsg];
           });
+          
+          // Mark read immediately if we are in this chat
+          markChatRead(activeChat.id, user.username, newMsg.timestamp);
 
-          // 4. Update Chat Sidebar
+          // 4. Update Chat Sidebar AND SORT
           setMyChats(prevChats => {
              const updated = prevChats.map(c => c.id === activeChat.id ? { ...c, lastMessage: newMsg } : c);
-             return updated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
+             return updated.sort((a, b) => ((b.lastMessage?.timestamp as number) || 0) - ((a.lastMessage?.timestamp as number) || 0));
           });
           
           try { audioRef.current.play(); } catch(e){}
@@ -713,17 +873,19 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                      if (prev.some(m => m.id === newMessageObj.id)) return prev;
                      return [...prev, newMessageObj];
                  });
+                 // Mark read since we are looking at it
+                 markChatRead(chatId, user.username, newMessageObj.timestamp);
              } else {
                 setUnreadCounts(prev => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
                 try { audioRef.current.play(); } catch(e){}
              }
 
-             // 3. Update Sidebar (Always sync with DB truth)
+             // 3. Update Sidebar (Always sync with DB truth) & SORT
              setMyChats(prevChats => {
                  const updatedChats = prevChats.map(chat => {
                      if (chat.id === chatId) {
                          // Only update if timestamp is newer (avoids overwriting optimistic updates with old data)
-                         if (!chat.lastMessage || newMessageObj.timestamp >= chat.lastMessage.timestamp) {
+                         if (!chat.lastMessage || (newMessageObj.timestamp as number) >= (chat.lastMessage.timestamp as number)) {
                              return { ...chat, lastMessage: newMessageObj };
                          }
                      }
@@ -746,6 +908,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                   const msg = { id: newRecord.id, sender: newRecord.sender, content: contentStr, timestamp: new Date(newRecord.created_at).getTime() };
                   const chatWithMsg = { ...newChat, lastMessage: msg };
 
+                  // Add to top of list
                   setMyChats(prev => [chatWithMsg, ...prev]);
                   setUnreadCounts(prev => ({ ...prev, [chatId]: 1 }));
                   try { audioRef.current.play(); } catch(e){}
@@ -792,7 +955,12 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
            const updatedChat = newRecord as ChatRoom;
            // If we are part of this chat
            if (updatedChat.participants.includes(user.username)) {
-               setMyChats(prev => prev.map(c => c.id === updatedChat.id ? { ...c, ...updatedChat, lastMessage: c.lastMessage } : c));
+               setMyChats(prev => {
+                   const mapped = prev.map(c => c.id === updatedChat.id ? { ...c, ...updatedChat, lastMessage: c.lastMessage } : c);
+                   // Maintain sort
+                   return mapped.sort((a,b) => (b.lastMessage?.timestamp||0) - (a.lastMessage?.timestamp||0));
+               });
+
                if (activeChatIdRef.current === updatedChat.id) {
                    setActiveChat(prev => prev ? { ...prev, ...updatedChat } : null);
                }
@@ -918,7 +1086,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
     
     setMessages(prev => [...prev, optimisticMsg]);
     
-    // Update Sidebar Immediately
+    // Update Sidebar Immediately AND SORT
     setMyChats(prev => {
         const updated = prev.map(c => c.id === activeChat.id ? { ...c, lastMessage: optimisticMsg } : c);
         return updated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
@@ -954,6 +1122,9 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       // We don't await this to block UI, but we catch errors
       await saveMessageToDB(activeChat.id, user.username, encrypted, tempId);
       
+      // Update read receipt to the timestamp of the message we just sent
+      markChatRead(activeChat.id, user.username, timestamp);
+      
     } catch (err) {
       console.error("Failed to send", err);
       // Rollback on failure (optional, but good UX)
@@ -963,7 +1134,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const files = Array.from(e.target.files);
+      const files = Array.from(e.target.files) as File[];
       for (const file of files) {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -1086,6 +1257,15 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
           setSelectedFriendsForGroup([]);
       } catch(e) { console.error(e); }
   };
+  
+  const handleCreateFromTemplate = async (name: string, desc: string) => {
+      try {
+          const newChat = await createGroupChat(name, desc, user.username, []);
+          setMyChats(p => [newChat, ...p]);
+          setActiveChat(newChat);
+          handleOnboardingComplete();
+      } catch(e) { console.error(e); }
+  };
 
   const handleSaveProfile = async () => {
       await updateProfile(user.username, { 
@@ -1137,6 +1317,11 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
         setProfilesCache(prev => ({...prev, ...p}));
     });
   };
+  
+  const handleOnboardingComplete = () => {
+      setShowOnboarding(false);
+      localStorage.setItem(`night_onboarding_completed_${user.username}`, 'true');
+  };
 
   // FILTER LOGIC
   const displayedChats = myChats.filter(c => !closedChatIds.has(c.id)).filter(c => {
@@ -1150,9 +1335,21 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       return false;
   });
 
-  const displayedFriends = (myProfile?.friends || []).filter(f => f.toLowerCase().includes(searchQuery.toLowerCase()));
+  const displayedFriends = (myProfile?.friends || [])
+    .filter(f => f.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+        // Sort: Online/Busy/Idle first, then Offline/Invisible
+        const statusA = onlineUsers[a] || 'offline';
+        const statusB = onlineUsers[b] || 'offline';
+        const isOnlineA = statusA !== 'offline' && statusA !== 'invisible';
+        const isOnlineB = statusB !== 'offline' && statusB !== 'invisible';
+        
+        if (isOnlineA && !isOnlineB) return -1;
+        if (!isOnlineA && isOnlineB) return 1;
+        return a.localeCompare(b);
+    });
 
-  const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
+  const totalUnread = Object.values(unreadCounts).reduce((a: number, b: number) => a + b, 0);
   const totalUnreadLabel = totalUnread > 99 ? '99+' : totalUnread.toString();
 
   if (loadingInitial) return <div className="h-full w-full bg-black flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-zinc-500"/></div>;
@@ -1169,7 +1366,16 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
          ))}
       </div>
 
-      {miniProfileUser && <MiniProfile key={miniProfileUser} username={miniProfileUser} initialData={profilesCache[miniProfileUser]} onClose={() => setMiniProfileUser(null)} onMessage={handleMessageUser} />}
+      {/* Onboarding Modal for New Users */}
+      {showOnboarding && (
+          <OnboardingModal 
+              onSkip={handleOnboardingComplete}
+              onCreateOwn={() => { setShowCreateGroup(true); handleOnboardingComplete(); }}
+              onTemplate={handleCreateFromTemplate}
+          />
+      )}
+
+      {miniProfileUser && <MiniProfile key={miniProfileUser} username={miniProfileUser} initialData={profilesCache[miniProfileUser]} onClose={() => setMiniProfileUser(null)} onMessage={handleMessageUser} status={onlineUsers[miniProfileUser] || 'offline'} />}
 
       <aside className={`md:flex flex-col w-full md:w-[320px] bg-black border-r border-zinc-900 transition-all ${activeChat ? 'hidden' : 'flex'}`}>
         <div className="flex pt-[env(safe-area-inset-top)] border-b border-zinc-900 bg-black/50 min-h-[3.5rem] items-end">
@@ -1216,12 +1422,14 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                  let displayName = chat.name;
                  let displayAvatar = chat.avatar;
                  let isVerified = false;
+                 let chatStatus: UserStatus | undefined = undefined;
                  
                  if (chat.type === 'dm') {
                     const otherUser = chat.participants.find(p => p !== user.username) || 'Unknown';
                     displayName = otherUser;
                     displayAvatar = profilesCache[otherUser]?.avatar;
                     isVerified = otherUser === 'night';
+                    chatStatus = onlineUsers[otherUser];
                  } else if (chat.id === OFFICIAL_CHAT_ID) {
                     isVerified = true;
                  }
@@ -1245,14 +1453,20 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                      onClick={() => setActiveChat(chat)}
                      className={`w-full text-left p-2 rounded-xl mx-0.5 flex items-center gap-3 transition-all group relative ${isActive ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-900/50 text-zinc-500'} ${unread > 0 ? 'bg-zinc-900/30 border-l-2 border-purple-500 pl-3 shadow-[inset_10px_0_20px_-10px_rgba(168,85,247,0.1)]' : ''}`}
                    >
-                     <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border overflow-hidden relative ${isActive ? 'border-zinc-700 bg-zinc-800' : 'border-zinc-900 bg-black'}`}>
-                        {displayAvatar ? (
-                            <img src={displayAvatar} className="w-full h-full object-cover" />
-                        ) : (
-                            isOff ? <Moon className="w-5 h-5 text-purple-400 fill-purple-400" /> : (chat.type === 'group' ? <Hash className="w-5 h-5" /> : <span className="font-bold text-lg">{displayName[0]?.toUpperCase()}</span>)
+                     <div className="relative shrink-0 w-10 h-10">
+                        <div className={`w-full h-full rounded-full flex items-center justify-center border overflow-hidden relative ${isActive ? 'border-zinc-700 bg-zinc-800' : 'border-zinc-900 bg-black'}`}>
+                            {displayAvatar ? (
+                                <img src={displayAvatar} className="w-full h-full object-cover" />
+                            ) : (
+                                isOff ? <Moon className="w-5 h-5 text-purple-400 fill-purple-400" /> : (chat.type === 'group' ? <Hash className="w-5 h-5" /> : <span className="font-bold text-lg">{displayName[0]?.toUpperCase()}</span>)
+                            )}
+                        </div>
+                        {chatStatus && chatStatus !== 'offline' && chatStatus !== 'invisible' && (
+                                <StatusIndicator status={chatStatus} className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5" />
                         )}
                         {unread > 0 && <div className="absolute -top-1 -right-1 bg-purple-500 text-white text-[9px] font-bold min-w-[16px] h-4 rounded-full flex items-center justify-center shadow-lg border border-black px-1">{badgeLabel}</div>}
                      </div>
+
                      <div className="flex-1 min-w-0">
                         <div className={`text-sm font-bold truncate flex items-center gap-1 ${isActive ? 'text-white' : 'text-zinc-300 group-hover:text-white'} ${unread > 0 ? 'text-white' : ''}`}>
                              {displayName} {isVerified && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}
@@ -1314,7 +1528,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                     </div>
                 )}
                 <div>
-                   <div className="px-2 text-[10px] font-bold text-zinc-600 uppercase mb-2 tracking-wider flex items-center gap-2">Friends <div className="h-px bg-zinc-900 flex-1"></div></div>
+                   <div className="px-2 text-[10px] font-bold text-zinc-600 uppercase mb-2 tracking-wider flex items-center gap-2">Friends — {displayedFriends.length} <div className="h-px bg-zinc-900 flex-1"></div></div>
                    
                    {displayedFriends.length === 0 && searchQuery && (
                         <div className="text-center text-zinc-600 text-[10px] mt-4">No contacts found.</div>
@@ -1323,15 +1537,20 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                    {displayedFriends.map(friend => {
                        const p = friendProfiles[friend];
                        const isVer = friend === 'night';
+                       const status = onlineUsers[friend] || 'offline';
+                       
                        return (
-                          <div key={friend} className="w-full text-left p-2 rounded-xl flex items-center gap-3 hover:bg-zinc-900/50 text-zinc-400 hover:text-zinc-200 group transition-all">
-                            <div className="w-9 h-9 rounded-full bg-black flex items-center justify-center border border-zinc-900 text-xs font-bold overflow-hidden">
-                                {p?.avatar ? <img src={p.avatar} className="w-full h-full object-cover"/> : friend[0].toUpperCase()}
+                          <div key={friend} className="w-full text-left p-2 rounded-xl flex items-center gap-3 hover:bg-zinc-900/50 text-zinc-400 hover:text-zinc-200 group transition-all cursor-pointer" onClick={() => handleMessageUser(friend)}>
+                            <div className="relative w-9 h-9 shrink-0">
+                                <div className="w-full h-full rounded-full bg-black flex items-center justify-center border border-zinc-900 text-xs font-bold overflow-hidden relative">
+                                    {p?.avatar ? <img src={p.avatar} className="w-full h-full object-cover"/> : friend[0].toUpperCase()}
+                                </div>
+                                {status !== 'offline' && status !== 'invisible' && <StatusIndicator status={status} className="absolute -bottom-0.5 -right-0.5 w-3 h-3" />}
                             </div>
                             <span className="text-sm font-medium flex-1 flex items-center gap-1">
                                 {friend} {isVer && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}
                             </span>
-                            <button onClick={() => handleFriendRemove(friend)} className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-600 hover:text-red-500 rounded bg-zinc-950 border border-zinc-900"><Trash className="w-3 h-3"/></button>
+                            <button onClick={(e) => { e.stopPropagation(); handleFriendRemove(friend); }} className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-600 hover:text-red-500 rounded bg-zinc-950 border border-zinc-900"><Trash className="w-3 h-3"/></button>
                           </div>
                        )
                    })}
@@ -1340,18 +1559,41 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
            )}
         </div>
 
-        <div className="h-14 bg-black flex items-center px-3 border-t border-zinc-900 justify-between shrink-0 pb-[env(safe-area-inset-bottom)] box-content">
-            <div className="flex items-center gap-3 overflow-hidden hover:bg-zinc-900/50 p-1.5 rounded-lg cursor-pointer transition-colors" onClick={() => setShowSettings(true)}>
-               <div className="w-9 h-9 rounded-full bg-zinc-900 overflow-hidden border border-zinc-800">
-                  {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : user.username[0]}
+        <div className="h-14 bg-black flex items-center px-3 border-t border-zinc-900 justify-between shrink-0 pb-[env(safe-area-inset-bottom)] box-content relative">
+            <div className="flex items-center gap-3 overflow-hidden hover:bg-zinc-900/50 p-1.5 rounded-lg cursor-pointer transition-colors" onClick={() => setShowStatusMenu(!showStatusMenu)}>
+               <div className="relative w-9 h-9 shrink-0">
+                   <div className="w-full h-full rounded-full bg-zinc-900 overflow-hidden border border-zinc-800 relative">
+                      {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : user.username[0]}
+                   </div>
+                   <StatusIndicator status={userStatus} className="absolute -bottom-0.5 -right-0.5 w-3 h-3 ring-2 ring-black" showInvisible />
                </div>
                <div className="min-w-0">
                   <div className="text-sm font-bold text-white truncate flex items-center gap-1">
                     {user.username} {user.username === 'night' && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}
                   </div>
-                  <div className="text-[10px] text-zinc-500 font-mono">#{user.id?.substr(0,4)}</div>
+                  <div className="text-[10px] text-zinc-500 font-mono capitalize">{userStatus === 'dnd' ? 'Do Not Disturb' : userStatus}</div>
                </div>
             </div>
+
+            {/* Status Dropdown */}
+            {showStatusMenu && (
+                <div className="absolute bottom-full left-3 mb-2 w-48 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl p-1 z-50 animate-scale-in">
+                    <button onClick={() => handleChangeStatus('online')} className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded-lg flex items-center gap-3 text-xs font-bold text-zinc-300 hover:text-white">
+                        <StatusIndicator status="online" className="w-2.5 h-2.5" /> Online
+                    </button>
+                    <button onClick={() => handleChangeStatus('idle')} className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded-lg flex items-center gap-3 text-xs font-bold text-zinc-300 hover:text-white">
+                        <StatusIndicator status="idle" className="w-2.5 h-2.5" /> Idle
+                    </button>
+                    <button onClick={() => handleChangeStatus('dnd')} className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded-lg flex items-center gap-3 text-xs font-bold text-zinc-300 hover:text-white">
+                        <StatusIndicator status="dnd" className="w-2.5 h-2.5" /> Do Not Disturb
+                    </button>
+                    <div className="h-px bg-zinc-900 my-1"></div>
+                    <button onClick={() => handleChangeStatus('invisible')} className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded-lg flex items-center gap-3 text-xs font-bold text-zinc-300 hover:text-white">
+                        <StatusIndicator status="invisible" className="w-2.5 h-2.5" showInvisible /> Invisible
+                    </button>
+                </div>
+            )}
+
             <div className="flex gap-1">
                <button onClick={() => setShowSettings(true)} className="p-2 text-zinc-500 hover:text-white transition-colors rounded-lg hover:bg-zinc-900"><Settings className="w-4 h-4" /></button>
                <button onClick={onLogout} className="p-2 text-zinc-500 hover:text-white transition-colors rounded-lg hover:bg-zinc-900"><LogOut className="w-4 h-4" /></button>
@@ -1371,12 +1613,24 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
           <div className="flex items-center gap-3">
              <button onClick={() => setActiveChat(null)} className="md:hidden text-zinc-400 p-1"><ChevronLeft className="w-6 h-6"/></button>
              <div className="flex items-center gap-3" onClick={() => setShowMobileInfo(true)}>
-                <div className="w-8 h-8 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 flex items-center justify-center">
-                    {activeChat?.type === 'dm' ? (
-                         <img src={profilesCache[activeChat.participants.find(p => p !== user.username)||'']?.avatar} className="w-full h-full object-cover" />
-                    ) : (
-                         activeChat?.avatar ? <img src={activeChat.avatar} className="w-full h-full object-cover" /> : (activeChat?.id === OFFICIAL_CHAT_ID ? <Moon className="w-4 h-4 text-purple-400 fill-purple-400" /> : <Hash className="w-4 h-4 text-zinc-500" />)
-                    )}
+                <div className="relative w-8 h-8 shrink-0">
+                    <div className="w-full h-full rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 flex items-center justify-center relative">
+                        {activeChat?.type === 'dm' ? (
+                             <img src={profilesCache[activeChat.participants.find(p => p !== user.username)||'']?.avatar} className="w-full h-full object-cover" />
+                        ) : (
+                             activeChat?.avatar ? <img src={activeChat.avatar} className="w-full h-full object-cover" /> : (activeChat?.id === OFFICIAL_CHAT_ID ? <Moon className="w-4 h-4 text-purple-400 fill-purple-400" /> : <Hash className="w-4 h-4 text-zinc-500" />)
+                        )}
+                    </div>
+                    {(() => {
+                        if (activeChat?.type === 'dm') {
+                            const other = activeChat.participants.find(p => p !== user.username);
+                            const status = other ? onlineUsers[other] : undefined;
+                            if (status && status !== 'offline' && status !== 'invisible') {
+                                return <StatusIndicator status={status} className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5" />;
+                            }
+                        }
+                        return null;
+                    })()}
                 </div>
                 <div className="flex flex-col min-w-0">
                     <h2 className="text-white font-bold text-sm flex items-center gap-1">
@@ -1505,6 +1759,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                   onUpdateDescription={handleUpdateDescription}
                   myFriends={myProfile?.friends || []}
                   onAddMembers={handleAddMembers}
+                  onlineUsers={onlineUsers}
                />
             </aside>
 
@@ -1525,6 +1780,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                            onUpdateDescription={handleUpdateDescription}
                            myFriends={myProfile?.friends || []}
                            onAddMembers={handleAddMembers}
+                           onlineUsers={onlineUsers}
                         />
                     </div>
                 </div>
@@ -1622,7 +1878,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   );
 };
 
-const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, handleGroupLogoUpload, setMiniProfileUser, onUpdateDescription, myFriends, onAddMembers }: any) => {
+const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, handleGroupLogoUpload, setMiniProfileUser, onUpdateDescription, myFriends, onAddMembers, onlineUsers }: any) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editDesc, setEditDesc] = useState(activeChat.description || '');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -1650,6 +1906,33 @@ const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, han
 
   // Filter friends who are NOT already in the chat
   const eligibleFriends = (myFriends || []).filter((f: string) => !activeChat.participants.includes(f));
+
+  // Split participants into Online and Offline
+  const onlineParticipants = activeChat.participants.filter((p: string) => {
+      const s = onlineUsers[p];
+      return s === 'online' || s === 'idle' || s === 'dnd';
+  }).sort();
+
+  const offlineParticipants = activeChat.participants.filter((p: string) => {
+      const s = onlineUsers[p];
+      return !s || s === 'offline' || s === 'invisible';
+  }).sort();
+
+  const renderParticipant = (p: string) => {
+      const status = onlineUsers?.[p] || 'offline';
+      return (
+         <div key={p} className="flex items-center gap-3 mb-2 p-2 hover:bg-zinc-900/50 rounded-lg cursor-pointer group transition-colors" onClick={() => setMiniProfileUser(p)}>
+            <div className="relative w-8 h-8 shrink-0">
+                <div className="w-full h-full rounded-full flex items-center justify-center text-xs font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 overflow-hidden">
+                    {profilesCache[p]?.avatar ? <img src={profilesCache[p].avatar} className="w-full h-full object-cover"/> : p[0].toUpperCase()}
+                </div>
+                {/* Always show indicator, even for offline */}
+                <StatusIndicator status={status} className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5" />
+            </div>
+            <div className="text-sm text-zinc-300 truncate font-medium flex items-center gap-1">{p} {p === 'night' && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}</div>
+         </div>
+      );
+  };
 
   return (
     <>
@@ -1706,8 +1989,8 @@ const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, han
           {activeChat.id === OFFICIAL_CHAT_ID && <span className="text-blue-400 text-xs mt-3 flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20"><VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" /> Verified</span>}
        </div>
        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          <div className="flex items-center justify-between mb-3">
-             <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider">Participants — {activeChat.participants.length}</div>
+          <div className="flex items-center justify-between mb-4">
+             <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Members</div>
              {isAdmin && activeChat.type === 'group' && (
                  <button onClick={() => setShowAddMemberModal(true)} className="p-1 text-zinc-500 hover:text-white bg-zinc-900 rounded hover:bg-zinc-800 transition-colors" title="Add Members">
                     <UserPlus className="w-3 h-3" />
@@ -1715,14 +1998,19 @@ const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, han
              )}
           </div>
           
-          {activeChat.participants.map((p: string) => (
-             <div key={p} className="flex items-center gap-3 mb-2 p-2 hover:bg-zinc-900/50 rounded-lg cursor-pointer group transition-colors" onClick={() => setMiniProfileUser(p)}>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-zinc-900 border border-zinc-800 text-zinc-400 overflow-hidden">
-                    {profilesCache[p]?.avatar ? <img src={profilesCache[p].avatar} className="w-full h-full object-cover"/> : p[0].toUpperCase()}
-                </div>
-                <div className="text-sm text-zinc-300 truncate font-medium flex items-center gap-1">{p} {p === 'night' && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}</div>
+          {onlineParticipants.length > 0 && (
+             <div className="mb-4">
+                 <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-2">Online — {onlineParticipants.length}</div>
+                 {onlineParticipants.map(renderParticipant)}
              </div>
-          ))}
+          )}
+
+          {offlineParticipants.length > 0 && (
+             <div className="mb-4">
+                 <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-2">Offline — {offlineParticipants.length}</div>
+                 {offlineParticipants.map(renderParticipant)}
+             </div>
+          )}
        </div>
 
        {/* Add Member Modal */}

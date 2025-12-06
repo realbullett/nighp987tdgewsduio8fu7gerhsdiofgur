@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { EncryptedFile, ChatMessage, ChatRoom, UserProfile, User, MessageContent } from './types';
+import { EncryptedFile, ChatMessage, ChatRoom, UserProfile, User, MessageContent, UserStatus } from './types';
 
 // --- Supabase Config ---
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://qesejuvizzzkwqedeqwk.supabase.co';
@@ -437,6 +437,69 @@ export const leaveGroup = async (chatId: string, username: string) => {
   }
 };
 
+// --- READ RECEIPT PERSISTENCE ---
+
+export const markChatRead = async (chatId: string, userId: string, minTimestamp: number = 0) => {
+    // We use the MAX of current time or the message timestamp to handle clock skew
+    // If device clock is slow, minTimestamp (from server message) will ensure correct logic
+    const now = Date.now();
+    const finalTimestamp = Math.max(now, minTimestamp);
+    
+    const key = `night_read_${userId}`;
+
+    // 1. ALWAYS update LocalStorage first (The Source of Truth for this device)
+    try {
+        const existing = JSON.parse(localStorage.getItem(key) || '{}');
+        // Only update if newer
+        if (!existing[chatId] || finalTimestamp > existing[chatId]) {
+            existing[chatId] = finalTimestamp;
+            localStorage.setItem(key, JSON.stringify(existing));
+        }
+    } catch(err) { /* ignore */ }
+
+    // 2. Try DB Upsert (Sync to other devices)
+    try {
+        await supabase.from('chat_read_receipts').upsert({
+            user_id: userId,
+            chat_id: chatId,
+            last_read_at: new Date(finalTimestamp).toISOString()
+        }, { onConflict: 'user_id, chat_id' });
+    } catch (e) {
+        // Silently fail on DB - LocalStorage covers us for this session
+    }
+};
+
+export const fetchReadStates = async (userId: string): Promise<Record<string, number>> => {
+    const reads: Record<string, number> = {};
+    
+    // 1. Load from LocalStorage first (Instant)
+    try {
+        const key = `night_read_${userId}`;
+        const local = JSON.parse(localStorage.getItem(key) || '{}');
+        Object.assign(reads, local);
+    } catch(e) {}
+
+    // 2. Try Fetch from DB to sync (Merge Strategy)
+    try {
+        const { data, error } = await supabase.from('chat_read_receipts').select('chat_id, last_read_at').eq('user_id', userId);
+        if (data && !error) {
+            data.forEach((row: any) => {
+                const ts = new Date(row.last_read_at).getTime();
+                // Prefer newer timestamp
+                if (!reads[row.chat_id] || ts > reads[row.chat_id]) {
+                    reads[row.chat_id] = ts;
+                }
+            });
+            // Optional: Update local storage with merged DB data for next time
+            const key = `night_read_${userId}`;
+            localStorage.setItem(key, JSON.stringify(reads));
+        }
+    } catch(e) {}
+    
+    return reads;
+};
+
+
 // --- Chats ---
 
 export const getDMChatId = (userA: string, userB: string) => {
@@ -529,6 +592,7 @@ export const getMyChats = async (username: string): Promise<ChatRoom[]> => {
     return chat;
   }));
 
+  // Robust Sort
   return hydrated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
 };
 
@@ -666,6 +730,43 @@ export const subscribeToGlobalMessages = (
         
     return () => { supabase.removeChannel(channel); };
 };
+
+export const subscribeToPresence = (
+    username: string,
+    onPresenceSync: (onlineUsers: Record<string, UserStatus>) => void
+) => {
+    const channel = supabase.channel('global_presence', {
+        config: { presence: { key: username } }
+    });
+
+    channel
+        .on('presence', { event: 'sync' }, () => {
+            const newState = channel.presenceState();
+            const onlineMap: Record<string, UserStatus> = {};
+            
+            Object.keys(newState).forEach(userKey => {
+                const presenceData = newState[userKey][0] as any;
+                if (presenceData && presenceData.status) {
+                    onlineMap[userKey] = presenceData.status;
+                }
+            });
+            onPresenceSync(onlineMap);
+        })
+        .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                // Initial Track as Online
+                await channel.track({ status: 'online', onlineAt: new Date().toISOString() });
+            }
+        });
+
+    return {
+        unsubscribe: () => supabase.removeChannel(channel),
+        updateStatus: async (status: UserStatus) => {
+            await channel.track({ status, onlineAt: new Date().toISOString() });
+        }
+    };
+};
+
 
 // --- Friends ---
 export const sendFriendRequest = async (from: string, to: string) => {
