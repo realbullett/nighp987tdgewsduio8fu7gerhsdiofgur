@@ -1353,6 +1353,10 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const totalUnread = Object.values(unreadCounts).reduce((a: number, b: number) => a + b, 0);
   const totalUnreadLabel = totalUnread > 99 ? '99+' : totalUnread.toString();
 
+  useEffect(() => {
+    document.title = totalUnread > 0 ? `Night | (${totalUnreadLabel})` : 'Night | Secure Chat';
+  }, [totalUnread, totalUnreadLabel]);
+
   if (loadingInitial) return <div className="h-full w-full bg-black flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-zinc-500"/></div>;
 
   return (
