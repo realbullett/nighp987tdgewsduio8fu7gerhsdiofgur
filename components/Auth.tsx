@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
-import { Lock, User as UserIcon, Moon, Camera, Upload, AlertTriangle, ArrowRight, Loader2, Check, Sparkles } from 'lucide-react';
+import { Lock, User as UserIcon, Moon, Camera, Upload, AlertTriangle, ArrowRight, Loader2, Check, Sparkles, Copy } from 'lucide-react';
 import { registerUser, loginUser, updateAvatar, getUserProfile } from '../utils';
 import { getAuthHelp } from '../geminiService';
 
@@ -218,11 +218,22 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [geminiTip, setGeminiTip] = useState('');
   const [loadingTip, setLoadingTip] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Animation State
   const [isFlipped, setIsFlipped] = useState(false);
+
+  useEffect(() => {
+    let s = 0;
+    if (password.length > 5) s++;
+    if (password.length > 9) s++;
+    if (/[A-Z]/.test(password)) s++;
+    if (/[0-9]/.test(password)) s++;
+    if (/[^a-zA-Z0-9]/.test(password)) s++;
+    setPasswordStrength(s);
+  }, [password]);
 
   const toggleAuthMode = () => {
     setError('');
@@ -238,6 +249,16 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       const tip = await getAuthHelp(field);
       setGeminiTip(tip);
       setLoadingTip(false);
+  };
+
+  const generateSecurePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+    let pass = "";
+    for (let i = 0; i < 16; i++) {
+        pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setPassword(pass);
+    setConfirmPassword(pass);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -370,7 +391,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       <div className="relative w-full max-w-[400px] perspective-[1000px] z-10 px-4 my-auto shrink-0 flex flex-col gap-4">
          
          {/* The Flip Card Container - Using min-height instead of fixed height for Android safety */}
-         <div className={`relative w-full h-[550px] min-h-[500px] transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`} style={{ transformStyle: 'preserve-3d', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
+         <div className={`relative w-full h-[600px] min-h-[600px] transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`} style={{ transformStyle: 'preserve-3d', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
             
             {/* FRONT: LOGIN */}
             <div className={`absolute w-full h-full backface-hidden flex flex-col ${step === 'REGISTER' ? 'pointer-events-none opacity-0' : 'opacity-100'}`} style={{ backfaceVisibility: 'hidden' }}>
@@ -434,7 +455,24 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Password</label>
-                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="••••••••" />
+                                <div className="relative">
+                                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all pr-20" placeholder="••••••••" />
+                                    {password && (
+                                        <button type="button" onClick={() => navigator.clipboard.writeText(password)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 transition-colors border border-zinc-700">
+                                            <Copy className="w-3 h-3" /> Copy
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="w-full h-1 bg-zinc-900 rounded-full mt-2 overflow-hidden">
+                                    <div className={`h-full transition-all duration-500 ${passwordStrength <= 1 ? 'bg-red-500 w-[15%]' : passwordStrength <= 3 ? 'bg-yellow-500 w-[60%]' : 'bg-green-500 w-full'}`}></div>
+                                </div>
+                                <p className="text-[10px] text-zinc-500 leading-tight">
+                                    {passwordStrength <= 3 ? (
+                                        <>Not bad, but could be stronger. <button type="button" onClick={generateSecurePassword} className="text-zinc-300 underline hover:text-white cursor-pointer">Generate a password</button>.</>
+                                    ) : (
+                                        <span className="text-green-500">Secure password.</span>
+                                    )}
+                                </p>
                             </div>
                             <div className="space-y-1">
                                 <div className="flex justify-between items-center px-1">

@@ -1,3 +1,4 @@
+
 export interface User {
   username: string;
   isAuthenticated: boolean;
@@ -64,4 +65,35 @@ export interface ChatRoom {
 export interface EncryptedFile {
   iv: string;
   data: string; // The encrypted ciphertext
+}
+
+// --- FORUMS ---
+export interface ForumCategory {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+export interface ForumThread {
+  id: string;
+  category_id: string;
+  author: string;
+  title: string;
+  content: string; // The initial post text
+  created_at: string;
+  updated_at: string;
+  tags?: string[];
+  banner?: string; // Base64 or URL
+  attachments?: Attachment[];
+  views?: number;
+  reply_count?: number; // Virtual field for UI
+}
+
+export interface ForumPost {
+  id: string;
+  thread_id: string;
+  author: string;
+  content: string;
+  created_at: string;
 }

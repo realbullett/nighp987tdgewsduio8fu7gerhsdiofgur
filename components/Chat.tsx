@@ -1,21 +1,22 @@
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment, UserStatus } from '../types';
+import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment, UserStatus, ForumCategory, ForumThread, ForumPost } from '../types';
 import { 
   getMessages, saveMessageToDB, prepareMessagePayload, getMyChats, getWelcomeChat,
   getUserProfile, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend,
   createGroupChat, updateAvatar, updateProfile, decryptMessage, resizeImage, detectLinks,
   getDMChatId, updateGroupAvatar, addMessageReaction, deleteMessage, updateMessage, subscribeToGlobalMessages,
   getProfiles, updateGroupDescription, leaveGroup, addGroupMembers, fetchTenorGifs, TenorGif, supabase, fetchChatDetails, subscribeToPresence,
-  markChatRead, fetchReadStates
+  markChatRead, fetchReadStates, getForumCategories, getForumThreads, getForumPosts, createForumThread, createForumPost, getAllForumThreads, incrementThreadView
 } from '../utils';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { 
   Send, LogOut, MessageSquare, Users, Hash, 
   UserPlus, Menu, Info, X, Check, Camera, Paperclip, 
   Image as ImageIcon, ExternalLink, Settings, Link as LinkIcon, Moon, Sparkles, Loader2,
-  ChevronLeft, Plus, Smile, MoreVertical, Trash, Lock, Edit2, Copy, File, Download, UserMinus, Image, Mail,
-  Search, Clapperboard, Flame, Gamepad2, Coffee, BookOpen, Music, ChevronRight, Circle, AlertTriangle, Filter
+  ChevronLeft, Plus, Smile, MoreVertical, Trash, Lock, Edit2, Copy, File, Download, UserMinus, Mail,
+  Search, Clapperboard, Flame, Gamepad2, Coffee, BookOpen, Music, ChevronRight, Circle, AlertTriangle, Filter, Globe, Cpu, ArrowLeft,
+  GraduationCap, Library, Eye, Tag, Calendar, Snowflake, Shield, Zap, Ghost, Radio
 } from 'lucide-react';
 
 interface ChatProps {
@@ -56,10 +57,84 @@ const StatusIndicator = ({ status, className, showInvisible }: { status: UserSta
     );
 };
 
+// --- Holiday Components ---
+
+const Snowfall = () => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+  
+      let width = canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
+      let height = canvas.height = canvas.parentElement?.clientHeight || window.innerHeight;
+      
+      const snowflakes: { x: number; y: number; r: number; d: number }[] = [];
+      const MAX_FLAKES = 50; 
+      
+      for (let i = 0; i < MAX_FLAKES; i++) {
+        snowflakes.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          r: Math.random() * 2 + 1,
+          d: Math.random() * MAX_FLAKES
+        });
+      }
+  
+      const handleResize = () => {
+        width = canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
+        height = canvas.height = canvas.parentElement?.clientHeight || window.innerHeight;
+      };
+  
+      window.addEventListener('resize', handleResize);
+      let animationFrameId: number;
+      let angle = 0;
+
+      const animate = () => {
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.beginPath();
+        
+        angle += 0.01;
+        
+        for (let i = 0; i < MAX_FLAKES; i++) {
+            const f = snowflakes[i];
+            // Movement
+            f.y += Math.pow(f.d, 2) + 1;
+            f.x += Math.sin(angle) * 2;
+
+            // Reset if out of view
+            if (f.y > height) {
+                snowflakes[i] = { x: Math.random() * width, y: 0, r: f.r, d: f.d };
+            }
+
+            ctx.moveTo(f.x, f.y);
+            ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2, true);
+        }
+        ctx.fill();
+        animationFrameId = requestAnimationFrame(animate);
+      };
+      animate();
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        cancelAnimationFrame(animationFrameId);
+      };
+    }, []);
+    return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-0" />;
+};
+
+const SwayingTree = () => (
+    <div className="absolute -bottom-2 -right-2 text-6xl opacity-20 group-hover:opacity-60 transition-opacity animate-sway pointer-events-none select-none filter blur-[1px]">
+        🎄
+    </div>
+);
+
 // --- 3D Sleeping Creature Component ---
 const SleepingCreature = () => {
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full pointer-events-none select-none">
+    <div className="flex flex-col items-center justify-center pointer-events-none select-none">
       <div className="relative w-40 h-40 animate-float">
         {/* Glow effect */}
         <div className="absolute inset-0 bg-indigo-500/20 blur-[60px] rounded-full animate-pulse-slow"></div>
@@ -88,11 +163,6 @@ const SleepingCreature = () => {
              <span className="absolute text-xl font-bold text-zinc-700 animate-zzz-2" style={{ top: '-15px', right: '-15px' }}>z</span>
              <span className="absolute text-lg font-bold text-zinc-800 animate-zzz-3" style={{ top: '-30px', right: '-5px' }}>z</span>
         </div>
-      </div>
-      
-      <div className="mt-12 text-center relative z-10">
-          <h3 className="text-zinc-500 font-bold uppercase tracking-[0.3em] text-xs mb-2">Encrypted Feed Offline</h3>
-          <p className="text-zinc-700 text-[10px] font-mono">Select a chat to begin handshake...</p>
       </div>
 
       <style>{`
@@ -135,6 +205,61 @@ const SleepingCreature = () => {
       `}</style>
     </div>
   );
+};
+
+// --- System Standby / Info Component ---
+const SystemStandby = () => {
+    return (
+        <div className="flex flex-col items-center justify-center h-full w-full relative z-10 px-6 overflow-y-auto">
+            <SleepingCreature />
+            
+            <div className="mt-8 text-center max-w-lg">
+                <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">System Standby</h2>
+                <div className="flex items-center justify-center gap-2 mb-8">
+                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                     <p className="text-zinc-500 text-xs font-mono uppercase tracking-widest">Encrypted Feed Offline</p>
+                </div>
+
+                {/* Feature Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+                    <div className="p-4 bg-zinc-900/30 border border-zinc-800/50 rounded-xl hover:bg-zinc-900/50 transition-colors">
+                        <Shield className="w-6 h-6 text-indigo-400 mb-3" />
+                        <h3 className="text-white text-xs font-bold uppercase mb-1">Secure Core</h3>
+                        <p className="text-zinc-500 text-[10px] leading-relaxed">
+                            End-to-End Encryption (AES-GCM) ensures your messages remain readable only by you and the recipient.
+                        </p>
+                    </div>
+
+                    <div className="p-4 bg-zinc-900/30 border border-zinc-800/50 rounded-xl hover:bg-zinc-900/50 transition-colors">
+                         <Ghost className="w-6 h-6 text-zinc-400 mb-3" />
+                         <h3 className="text-white text-xs font-bold uppercase mb-1">Zero Trace</h3>
+                         <p className="text-zinc-500 text-[10px] leading-relaxed">
+                            Ephemeral architecture. No persistent tracking logs. Your digital footprint dissolves into the void.
+                         </p>
+                    </div>
+
+                    <div className="p-4 bg-zinc-900/30 border border-zinc-800/50 rounded-xl hover:bg-zinc-900/50 transition-colors">
+                         <Zap className="w-6 h-6 text-yellow-500 mb-3" />
+                         <h3 className="text-white text-xs font-bold uppercase mb-1">Realtime</h3>
+                         <p className="text-zinc-500 text-[10px] leading-relaxed">
+                            Instant delivery via websocket channels with active presence monitoring and read receipts.
+                         </p>
+                    </div>
+                </div>
+
+                <div className="mt-12 flex items-center justify-center gap-6 text-[10px] text-zinc-600 font-mono">
+                    <div className="flex items-center gap-2">
+                        <Radio className="w-3 h-3" />
+                        <span>v2.4.0 (Noir)</span>
+                    </div>
+                    <span>•</span>
+                    <div>LATENCY: 12ms</div>
+                    <span>•</span>
+                    <div>REGION: US-EAST</div>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 // --- SUB-COMPONENTS ---
@@ -271,6 +396,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   );
 };
 
+// ... (MiniProfile - Unchanged)
 const MiniProfile = ({ username, initialData, onClose, onMessage, status }: { username: string, initialData?: UserProfile, onClose: () => void, onMessage: (user: string) => void, status: UserStatus }) => {
     const [profile, setProfile] = useState<UserProfile | null>(initialData || null);
     useEffect(() => { getUserProfile(username).then(p => { if (p) setProfile(p); }); }, [username]);
@@ -303,6 +429,7 @@ const MiniProfile = ({ username, initialData, onClose, onMessage, status }: { us
     );
 };
 
+// ... (ChannelInfoContent, Toast, formatDateSeparator - Unchanged)
 const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, handleGroupLogoUpload, setMiniProfileUser, onUpdateDescription, myFriends, onAddMembers, onlineUsers }: { activeChat: ChatRoom; user: User; profilesCache: Record<string, UserProfile>; groupLogoRef: React.RefObject<HTMLInputElement>; handleGroupLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void; setMiniProfileUser: (user: string | null) => void; onUpdateDescription: (desc: string) => void; myFriends: string[]; onAddMembers: (members: string[]) => void; onlineUsers: Record<string, UserStatus>; }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editDesc, setEditDesc] = useState(activeChat.description || '');
@@ -359,6 +486,9 @@ const formatDateSeparator = (timestamp: number) => {
 const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [activeChat, setActiveChat] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // NEW: Message Cache for instant loading
+  const [messagesCache, setMessagesCache] = useState<Record<string, ChatMessage[]>>({});
+
   const [inputText, setInputText] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [myChats, setMyChats] = useState<ChatRoom[]>([]);
@@ -368,6 +498,31 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [filterMode, setFilterMode] = useState<'all' | 'unread' | 'groups'>('all');
+  const [viewMode, setViewMode] = useState<'chats' | 'forums'>('chats'); // New View Mode
+
+  // Forum State
+  const [forumCategories, setForumCategories] = useState<ForumCategory[]>([]);
+  const [activeCategory, setActiveCategory] = useState<ForumCategory | null>(null);
+  const [forumThreads, setForumThreads] = useState<ForumThread[]>([]);
+  const [allForumThreads, setAllForumThreads] = useState<ForumThread[]>([]); // For Dashboard
+  const [activeThread, setActiveThread] = useState<ForumThread | null>(null);
+  const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
+  
+  // Advanced Forum Creation State
+  const [showCreateThread, setShowCreateThread] = useState(false);
+  const [newThreadTitle, setNewThreadTitle] = useState('');
+  const [newThreadContent, setNewThreadContent] = useState('');
+  const [newThreadTags, setNewThreadTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [newThreadBanner, setNewThreadBanner] = useState('');
+  const [newThreadAttachments, setNewThreadAttachments] = useState<Attachment[]>([]);
+  
+  // Forum Rich Input State
+  const [forumInputText, setForumInputText] = useState('');
+  const [forumAttachments, setForumAttachments] = useState<Attachment[]>([]);
+  const [showForumEmoji, setShowForumEmoji] = useState(false);
+  const [showForumGif, setShowForumGif] = useState(false);
+
 
   // UI States
   const [showAddFriend, setShowAddFriend] = useState(false);
@@ -404,10 +559,14 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [groupDescInput, setGroupDescInput] = useState(''); 
   const [selectedFriendsForGroup, setSelectedFriendsForGroup] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const forumFileInputRef = useRef<HTMLInputElement>(null);
   const groupLogoRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const forumTextAreaRef = useRef<HTMLTextAreaElement>(null);
+  const createThreadFileRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3'));
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const forumEndRef = useRef<HTMLDivElement>(null);
 
   // Contacts Cache
   const [friendProfiles, setFriendProfiles] = useState<Record<string, UserProfile>>({});
@@ -418,8 +577,14 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const messagesRef = useRef<ChatMessage[]>([]);
   const activeChannelRef = useRef<RealtimeChannel | null>(null);
   const myProfileRef = useRef<UserProfile | null>(null);
+  
+  // Forum Refs
+  const activeCategoryRef = useRef<string | null>(null);
+  const activeThreadRef = useRef<string | null>(null);
 
   useEffect(() => { myProfileRef.current = myProfile; }, [myProfile]);
+  useEffect(() => { activeCategoryRef.current = activeCategory?.id || null; }, [activeCategory]);
+  useEffect(() => { activeThreadRef.current = activeThread?.id || null; }, [activeThread]);
 
   const addToast = (message: string, type: Toast['type'] = 'info') => {
      const id = Date.now();
@@ -452,10 +617,19 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       if (closed) setClosedChatIds(new Set(JSON.parse(closed)));
       if (Notification.permission === 'default') await Notification.requestPermission();
       
-      const [profile, welcome, chats] = await Promise.all([getUserProfile(user.username), getWelcomeChat(), getMyChats(user.username)]);
+      const [profile, welcome, chats, categories] = await Promise.all([
+          getUserProfile(user.username), 
+          getWelcomeChat(), 
+          getMyChats(user.username),
+          getForumCategories()
+      ]);
       const sortedChats = chats.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
       setMyChats(sortedChats);
       setMyProfile(profile);
+      setForumCategories(categories);
+      
+      // Initial Load of recent threads for dashboard
+      getAllForumThreads().then(setAllForumThreads);
       
       try {
           const reads = await fetchReadStates(user.username);
@@ -483,18 +657,72 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
     init();
   }, [user.username]);
 
+  // OPTIMIZED CHAT SWITCHING
   useEffect(() => {
      if (activeChat) {
+         const chatId = activeChat.id;
+         
+         // 1. Check Cache first for INSTANT loading
+         if (messagesCache[chatId]) {
+             setMessages(messagesCache[chatId]);
+         } else {
+             setMessages([]); // Only clear if no cache to show loading state
+         }
+
+         // 2. Fetch Fresh History (Background Sync)
+         getMessages(chatId).then(msgs => {
+             // Update cache with fresh data
+             setMessagesCache(prev => ({ ...prev, [chatId]: msgs }));
+             
+             // If user is still on this chat, update UI
+             if (activeChatIdRef.current === chatId) {
+                 setMessages(msgs);
+             }
+         });
+
+         // 3. Load Profiles
          getProfiles(activeChat.participants).then(profiles => { setProfilesCache(prev => ({ ...prev, ...profiles })); });
+         
+         // 4. Handle Unread State
          setUnreadCounts(prev => ({ ...prev, [activeChat.id]: 0 }));
          markChatRead(activeChat.id, user.username, activeChat.lastMessage?.timestamp || 0);
-         // Auto-show info panel on desktop by default (reset to true when switching chats if user previously closed it is optional, keeping state persists user preference)
      }
-  }, [activeChat?.id, activeChat?.lastMessage?.timestamp]);
+  }, [activeChat?.id]); // Only re-run if ID changes, not object reference
 
   useEffect(() => { activeChatIdRef.current = activeChat?.id || null; }, [activeChat]);
   useEffect(() => { myChatsRef.current = myChats; }, [myChats]);
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  // Forum Data Fetching
+  useEffect(() => {
+      if (activeCategory) {
+          getForumThreads(activeCategory.id).then(setForumThreads);
+          setActiveThread(null);
+      }
+  }, [activeCategory]);
+
+  useEffect(() => {
+      if (activeThread) {
+          incrementThreadView(activeThread.id);
+          getForumPosts(activeThread.id).then(posts => {
+              // Ensure we cache profiles for forum participants
+              const authors = new Set(posts.map(p => p.author));
+              authors.add(activeThread.author);
+              const missing = Array.from(authors).filter(a => !profilesCache[a]);
+              if (missing.length > 0) {
+                  getProfiles(missing).then(p => setProfilesCache(prev => ({...prev, ...p})));
+              }
+              setForumPosts(posts);
+          });
+      }
+  }, [activeThread]);
+  
+  useLayoutEffect(() => {
+      if (activeThread) {
+        forumEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      }
+  }, [forumPosts, activeThread?.id]);
+
 
   useEffect(() => {
      if (!activeChat) return;
@@ -506,10 +734,20 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
           let contentStr = '';
           try { contentStr = await decryptMessage(payload.iv, payload.content, activeChat.id); } catch(e) { console.error("Broadcast Decrypt Fail", e); }
           const newMsg: ChatMessage = { id: payload.id, sender: payload.sender, content: contentStr, timestamp: new Date(payload.created_at).getTime() };
-          setMessages(prev => { if (prev.some(m => m.id === newMsg.id)) return prev; return [...prev, newMsg]; });
+          
+          // Update State & Cache
+          setMessages(prev => { 
+             if (prev.some(m => m.id === newMsg.id)) return prev; 
+             return [...prev, newMsg]; 
+          });
+          setMessagesCache(prev => ({
+             ...prev,
+             [activeChat.id]: [...(prev[activeChat.id] || []), newMsg]
+          }));
+
           markChatRead(activeChat.id, user.username, newMsg.timestamp);
           setMyChats(prevChats => { const updated = prevChats.map(c => c.id === activeChat.id ? { ...c, lastMessage: newMsg } : c); return updated.sort((a, b) => ((b.lastMessage?.timestamp as number) || 0) - ((a.lastMessage?.timestamp as number) || 0)); });
-          try { audioRef.current.play(); } catch(e){}
+          try { audioRef.current.play().catch(() => {}); } catch(e){}
        }).subscribe();
      activeChannelRef.current = channel;
      return () => { supabase.removeChannel(channel); activeChannelRef.current = null; };
@@ -526,12 +764,19 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
           if (belongsToMyChat) {
              let contentStr = ''; try { contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId); } catch(e) { }
              const newMessageObj: ChatMessage = { id: newRecord.id, sender: newRecord.sender, content: contentStr, timestamp: new Date(newRecord.created_at).getTime() };
+             
+             // Update Cache for this chat regardless of if it's active
+             setMessagesCache(prev => ({
+                ...prev,
+                [chatId]: [...(prev[chatId] || []), newMessageObj]
+             }));
+
              if (activeChatIdRef.current === chatId) {
                  setMessages(prev => { if (prev.some(m => m.id === newMessageObj.id)) return prev; return [...prev, newMessageObj]; });
                  markChatRead(chatId, user.username, newMessageObj.timestamp);
              } else {
                 setUnreadCounts(prev => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
-                try { audioRef.current.play(); } catch(e){}
+                try { audioRef.current.play().catch(() => {}); } catch(e){}
              }
              setMyChats(prevChats => {
                  const updatedChats = prevChats.map(chat => { if (chat.id === chatId) { if (!chat.lastMessage || (newMessageObj.timestamp as number) >= (chat.lastMessage.timestamp as number)) { return { ...chat, lastMessage: newMessageObj }; } } return chat; });
@@ -545,13 +790,14 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                   const chatWithMsg = { ...newChat, lastMessage: msg };
                   setMyChats(prev => [chatWithMsg, ...prev]);
                   setUnreadCounts(prev => ({ ...prev, [chatId]: 1 }));
-                  try { audioRef.current.play(); } catch(e){}
+                  try { audioRef.current.play().catch(() => {}); } catch(e){}
               }
           }
        }
        if (eventType === 'UPDATE') { const chatId = newRecord.chat_id; if (activeChatIdRef.current === chatId) { try { const contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId); setMessages(prev => prev.map(m => m.id === newRecord.id ? { ...m, content: contentStr } : m)); } catch(e) {} } }
        if (eventType === 'DELETE') { if (activeChatIdRef.current) { setMessages(prev => prev.filter(m => m.id !== oldRecord.id)); } }
     };
+    // ... rest of event handlers
     const handleChatEvent = async (payload: any) => {
        const eventType = payload.eventType;
        const newRecord = payload.new;
@@ -576,7 +822,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                 const profiles = await getProfiles([newRecord.sender]);
                 setFriendProfiles(prev => ({...prev, ...profiles}));
                 addToast(`New friend request from ${newRecord.sender}`, 'info');
-                try { audioRef.current.play(); } catch(e){}
+                try { audioRef.current.play().catch(() => {}); } catch(e){}
             }
         }
         if (eventType === 'UPDATE') {
@@ -596,21 +842,54 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
             setMyProfile(prev => { if (!prev) return null; return { ...prev, friends: prev.friends.filter(f => f !== otherPerson), incomingRequests: prev.incomingRequests.filter(f => f !== otherPerson), outgoingRequests: prev.outgoingRequests.filter(f => f !== otherPerson) }; });
         }
     };
-    const unsub = subscribeToGlobalMessages(handleMessageEvent, handleChatEvent, handleFriendEvent);
+    
+    // FORUMS REALTIME
+    const handleForumEvent = (payload: any) => {
+        if (payload.table === 'forum_threads') {
+            const thread = payload.new;
+            if (payload.eventType === 'INSERT') {
+                setAllForumThreads(prev => [thread, ...prev].slice(0, 50));
+                if (activeCategoryRef.current === thread.category_id) {
+                    setForumThreads(prev => [thread, ...prev]);
+                }
+            }
+            if (payload.eventType === 'UPDATE') {
+                 // Update views or timestamps
+                 setAllForumThreads(prev => prev.map(t => t.id === thread.id ? thread : t).sort((a,b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+                 if (activeCategoryRef.current === thread.category_id) {
+                     setForumThreads(prev => {
+                         const updated = prev.map(t => t.id === thread.id ? thread : t);
+                         return updated.sort((a,b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+                     });
+                 }
+                 if (activeThreadRef.current === thread.id) {
+                     setActiveThread(thread);
+                 }
+            }
+        }
+        if (payload.table === 'forum_posts') {
+            const post = payload.new;
+            if (payload.eventType === 'INSERT' && activeThreadRef.current === post.thread_id) {
+                setForumPosts(prev => [...prev, post]);
+                // Fetch profile if needed
+                if (!profilesCache[post.author]) {
+                    getProfiles([post.author]).then(p => setProfilesCache(prev => ({...prev, ...p})));
+                }
+            }
+        }
+    };
+
+    const unsub = subscribeToGlobalMessages(handleMessageEvent, handleChatEvent, handleFriendEvent, handleForumEvent);
     return () => { unsub(); };
   }, [user.username]);
-
-  useEffect(() => {
-    if (!activeChat) return;
-    setUnreadCounts(prev => ({ ...prev, [activeChat.id]: 0 }));
-    getMessages(activeChat.id).then(msgs => { setMessages(msgs); });
-  }, [activeChat?.id]);
 
   useLayoutEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }); }, [messages, activeChat?.id]);
   
   const handleSendMessage = async (e?: React.FormEvent, overrideText?: string) => {
     e?.preventDefault();
     const textToSend = overrideText || inputText;
+
+    // CHAT MESSAGE LOGIC
     if ((!textToSend.trim() && attachments.length === 0) || !activeChat) return;
     if (activeChat.id === OFFICIAL_CHAT_ID && user.username !== 'night') return;
 
@@ -620,7 +899,14 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
     const timestamp = Date.now();
     const isoTimestamp = new Date(timestamp).toISOString();
     const optimisticMsg: ChatMessage = { id: tempId, sender: user.username, content: contentString, timestamp };
+    
+    // Update State & Cache Optimistically
     setMessages(prev => [...prev, optimisticMsg]);
+    setMessagesCache(prev => ({
+        ...prev,
+        [activeChat.id]: [...(prev[activeChat.id] || []), optimisticMsg]
+    }));
+
     setMyChats(prev => { const updated = prev.map(c => c.id === activeChat.id ? { ...c, lastMessage: optimisticMsg } : c); return updated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0)); });
     if (!overrideText) { setInputText(''); setAttachments([]); if (textAreaRef.current) textAreaRef.current.style.height = 'auto'; }
     try {
@@ -629,6 +915,76 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       await saveMessageToDB(activeChat.id, user.username, encrypted, tempId);
       markChatRead(activeChat.id, user.username, timestamp);
     } catch (err) { console.error("Failed to send", err); addToast("Failed to save message to history", "alert"); }
+  };
+
+  const handleForumSendMessage = async (e?: React.FormEvent, overrideText?: string) => {
+     e?.preventDefault();
+     const textToSend = overrideText || forumInputText;
+     if (!activeThread || (!textToSend.trim() && forumAttachments.length === 0)) return;
+
+     const contentObj: MessageContent = { text: textToSend, attachments: forumAttachments.length > 0 ? forumAttachments : undefined };
+     const contentStr = JSON.stringify(contentObj);
+     
+     // Optimistic Update
+     const optimisticPost: ForumPost = {
+         id: crypto.randomUUID(),
+         thread_id: activeThread.id,
+         author: user.username,
+         content: contentStr,
+         created_at: new Date().toISOString()
+     };
+     setForumPosts(prev => [...prev, optimisticPost]);
+     
+     // Clear Input
+     if (!overrideText) { setForumInputText(''); setForumAttachments([]); if (forumTextAreaRef.current) forumTextAreaRef.current.style.height = 'auto'; }
+
+     try {
+         await createForumPost(activeThread.id, user.username, contentStr);
+     } catch(e) { console.error(e); addToast('Failed to post', 'alert'); }
+  };
+
+
+  const handleCreateForumThread = async () => {
+      if (!activeCategory || !newThreadTitle || !newThreadContent) return;
+      try {
+          const thread = await createForumThread(
+              activeCategory.id, 
+              user.username, 
+              newThreadTitle, 
+              newThreadContent,
+              newThreadTags,
+              newThreadBanner,
+              newThreadAttachments
+          );
+          
+          // Add first post logic (message bubble style) happens automatically via data fetch
+          // But we need to insert the first post so it looks like a message
+          const contentObj: MessageContent = { text: newThreadContent, attachments: newThreadAttachments.length ? newThreadAttachments : undefined };
+          await createForumPost(thread.id, user.username, JSON.stringify(contentObj));
+          
+          setForumThreads(prev => [thread, ...prev]);
+          setShowCreateThread(false);
+          // Reset Form
+          setNewThreadTitle('');
+          setNewThreadContent('');
+          setNewThreadTags([]);
+          setNewThreadBanner('');
+          setNewThreadAttachments([]);
+          
+          setActiveThread(thread);
+      } catch(e) { console.error(e); addToast('Failed to create thread', 'alert'); }
+  };
+
+  // ... (Remainder of handlers: handleAddTag, handleFileSelect, etc. - Unchanged)
+
+  const handleAddTag = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && tagInput.trim()) {
+          e.preventDefault();
+          if (!newThreadTags.includes(tagInput.trim())) {
+              setNewThreadTags([...newThreadTags, tagInput.trim()]);
+          }
+          setTagInput('');
+      }
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -646,6 +1002,40 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       }
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+  
+  const handleForumFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files) as File[];
+      for (const file of files) {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = async () => {
+          let url = reader.result as string;
+          if (file.type.startsWith('image/')) { url = await resizeImage(url, 800, 800, 0.7); }
+          const type = file.type.startsWith('image/') ? 'image' : 'file';
+          setForumAttachments(prev => [...prev, { type, url, name: file.name, size: file.size, mimeType: file.type }]);
+        };
+      }
+    }
+    if (forumFileInputRef.current) forumFileInputRef.current.value = '';
+  };
+  
+  const handleCreateThreadFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+        const files = Array.from(e.target.files) as File[];
+        for (const file of files) {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = async () => {
+                let url = reader.result as string;
+                if (file.type.startsWith('image/')) { url = await resizeImage(url, 800, 800, 0.7); }
+                const type = file.type.startsWith('image/') ? 'image' : 'file';
+                setNewThreadAttachments(prev => [...prev, { type, url, name: file.name, size: file.size, mimeType: file.type }]);
+            };
+        }
+    }
+    if (createThreadFileRef.current) createThreadFileRef.current.value = '';
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
@@ -667,6 +1057,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       let chat = myChats.find(c => c.type === 'dm' && c.participants.includes(targetUsername));
       if (!chat) { const chatId = getDMChatId(user.username, targetUsername); chat = { id: chatId, type: 'dm', name: targetUsername, participants: [user.username, targetUsername], avatar: '' }; setMyChats(p => [chat!, ...p]); }
       setMiniProfileUser(null);
+      setViewMode('chats');
       setActiveChat(chat);
   };
   
@@ -678,7 +1069,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const handleAddMembers = async (newMembers: string[]) => { if (!activeChat) return; await addGroupMembers(activeChat.id, newMembers); const updatedParticipants = [...activeChat.participants, ...newMembers]; const updatedChat = { ...activeChat, participants: updatedParticipants }; setActiveChat(updatedChat); setMyChats(prev => prev.map(c => c.id === activeChat.id ? updatedChat : c)); addToast("Members added", "success"); getProfiles(newMembers).then(p => { setProfilesCache(prev => ({...prev, ...p})); }); };
   const handleOnboardingComplete = () => { setShowOnboarding(false); localStorage.setItem(`night_onboarding_completed_${user.username}`, 'true'); };
 
-  // FILTER LOGIC
+  // FILTER LOGIC & RENDER ... (Same as before)
   const displayedChats = myChats.filter(c => !closedChatIds.has(c.id)).filter(c => {
       if (filterMode === 'unread' && (unreadCounts[c.id] || 0) === 0) return false;
       if (filterMode === 'groups' && c.type !== 'group') return false;
@@ -694,6 +1085,21 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const totalUnreadLabel = totalUnread > 99 ? '99+' : totalUnread.toString();
   useEffect(() => { document.title = totalUnread > 0 ? `Night | (${totalUnreadLabel})` : 'Night | Secure Chat'; }, [totalUnread, totalUnreadLabel]);
 
+  // CATEGORY ICON RENDERER
+  const renderCategoryIcon = (iconName: string, className = "w-5 h-5") => {
+      switch(iconName) {
+          case 'Globe': return <Globe className={className} />;
+          case 'Gamepad2': return <Gamepad2 className={className} />;
+          case 'Cpu': return <Cpu className={className} />;
+          case 'Music': return <Music className={className} />;
+          case 'GraduationCap': return <GraduationCap className={className} />;
+          case 'BookOpen': return <BookOpen className={className} />;
+          case 'Library': return <Library className={className} />;
+          case 'Users': return <Users className={className} />;
+          default: return <Hash className={className} />;
+      }
+  };
+
   if (loadingInitial) return <div className="h-full w-full bg-black flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-zinc-500"/></div>;
 
   return (
@@ -704,8 +1110,8 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       {showOnboarding && (<OnboardingModal onSkip={handleOnboardingComplete} onCreateOwn={() => { setShowCreateGroup(true); handleOnboardingComplete(); }} onTemplate={handleCreateFromTemplate} />)}
       {miniProfileUser && <MiniProfile key={miniProfileUser} username={miniProfileUser} initialData={profilesCache[miniProfileUser]} onClose={() => setMiniProfileUser(null)} onMessage={handleMessageUser} status={onlineUsers[miniProfileUser] || 'offline'} />}
 
-      {/* --- SIDEBAR (WhatsApp Style) --- */}
-      <aside className={`flex flex-col w-full md:w-[400px] bg-black border-r border-zinc-900 h-full ${activeChat ? 'hidden md:flex' : 'flex'}`}>
+      {/* --- SIDEBAR --- */}
+      <aside className={`flex flex-col w-full md:w-[400px] bg-black border-r border-zinc-900 h-full ${(activeChat || activeThread) ? 'hidden md:flex' : 'flex'}`}>
         {/* Header */}
         <div className="h-16 bg-zinc-950 flex items-center justify-between px-4 border-b border-zinc-900 shrink-0 pt-[env(safe-area-inset-top)] box-content">
              <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowStatusMenu(!showStatusMenu)}>
@@ -727,104 +1133,140 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                 </div>
             )}
              <div className="flex gap-1 text-zinc-400">
-                 <button onClick={() => setShowAddFriend(true)} className="p-2 hover:bg-zinc-900 rounded-full" title="New Contact"><UserPlus className="w-5 h-5"/></button>
-                 <button onClick={() => setShowCreateGroup(true)} className="p-2 hover:bg-zinc-900 rounded-full" title="New Group"><Users className="w-5 h-5"/></button>
+                 <button onClick={() => { setViewMode('forums'); setActiveCategory(null); setActiveThread(null); }} className={`p-2 rounded-full ${viewMode === 'forums' ? 'bg-zinc-800 text-white' : 'hover:bg-zinc-900'}`} title="Global Forums"><Globe className="w-5 h-5"/></button>
+                 <button onClick={() => { setViewMode('chats'); setActiveChat(null); }} className={`p-2 rounded-full ${viewMode === 'chats' ? 'bg-zinc-800 text-white' : 'hover:bg-zinc-900'}`} title="Chats"><MessageSquare className="w-5 h-5"/></button>
+                 <div className="w-px h-6 bg-zinc-800 mx-1 self-center"></div>
+                 <button onClick={() => setShowAddFriend(true)} className="p-2 hover:bg-zinc-900 rounded-full relative" title="New Contact">
+                    <UserPlus className="w-5 h-5"/>
+                    {(myProfile?.incomingRequests?.length || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>}
+                 </button>
                  <button onClick={() => setShowSettings(true)} className="p-2 hover:bg-zinc-900 rounded-full" title="Settings"><Settings className="w-5 h-5"/></button>
                  <button onClick={onLogout} className="p-2 hover:bg-zinc-900 rounded-full text-red-400/70 hover:text-red-400" title="Logout"><LogOut className="w-5 h-5"/></button>
              </div>
         </div>
 
-        {/* Search & Filters */}
-        <div className="p-3 bg-black flex flex-col gap-3">
-             <div className="relative group">
-                 <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500 group-focus-within:text-white" />
-                 <input 
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-zinc-700 rounded-lg py-2 pl-10 pr-3 text-sm text-white placeholder-zinc-500 outline-none transition-all"
-                    placeholder="Search chats or start new"
-                 />
-                 {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2.5 text-zinc-500 hover:text-white"><X className="w-3 h-3"/></button>}
-             </div>
-             <div className="flex gap-2">
-                 <button onClick={() => setFilterMode('all')} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterMode === 'all' ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'}`}>All</button>
-                 <button onClick={() => setFilterMode('unread')} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterMode === 'unread' ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'}`}>Unread</button>
-                 <button onClick={() => setFilterMode('groups')} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterMode === 'groups' ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'}`}>Groups</button>
-             </div>
-        </div>
+        {viewMode === 'chats' ? (
+            <>
+                <div className="p-3 bg-black flex flex-col gap-3">
+                    <div className="relative group">
+                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500 group-focus-within:text-white" />
+                        <input 
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="w-full bg-zinc-900/50 border border-zinc-800 focus:border-zinc-700 rounded-lg py-2 pl-10 pr-3 text-sm text-white placeholder-zinc-500 outline-none transition-all"
+                            placeholder="Search chats..."
+                        />
+                        {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2.5 text-zinc-500 hover:text-white"><X className="w-3 h-3"/></button>}
+                    </div>
+                    <div className="flex gap-2 justify-between">
+                         <div className="flex gap-2">
+                            <button onClick={() => setFilterMode('all')} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterMode === 'all' ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'}`}>All</button>
+                            <button onClick={() => setFilterMode('unread')} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterMode === 'unread' ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'}`}>Unread</button>
+                            <button onClick={() => setFilterMode('groups')} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filterMode === 'groups' ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'}`}>Groups</button>
+                         </div>
+                         <button onClick={() => setShowCreateGroup(true)} className="p-1 hover:bg-zinc-900 rounded text-zinc-500" title="New Group"><Plus className="w-5 h-5"/></button>
+                    </div>
+                </div>
 
-        {/* Chat List */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {displayedChats.length === 0 ? (
-                <div className="text-center text-zinc-600 text-xs py-10">No chats found.</div>
-            ) : (
-                displayedChats.map(chat => {
-                    let displayName = chat.name;
-                    let displayAvatar = chat.avatar;
-                    let isVerified = false;
-                    let chatStatus: UserStatus | undefined = undefined;
-                    
-                    if (chat.type === 'dm') {
-                       const otherUser = chat.participants.find(p => p !== user.username) || 'Unknown';
-                       displayName = otherUser;
-                       displayAvatar = profilesCache[otherUser]?.avatar;
-                       isVerified = otherUser === 'night';
-                       chatStatus = onlineUsers[otherUser];
-                    } else if (chat.id === OFFICIAL_CHAT_ID) {
-                       isVerified = true;
-                    }
-   
-                    const isActive = activeChat?.id === chat.id;
-                    const isOff = chat.id === OFFICIAL_CHAT_ID;
-                    const unread = unreadCounts[chat.id] || 0;
-                    
-                    let lastMsgText = '';
-                    if (chat.lastMessage) {
-                        try {
-                            const content = JSON.parse(chat.lastMessage.content);
-                            lastMsgText = content.text || (content.attachments?.length ? '📷 Photo' : '');
-                        } catch { lastMsgText = chat.lastMessage.content; }
-                    }
-   
-                    return (
-                      <div 
-                        key={chat.id}
-                        onClick={() => setActiveChat(chat)}
-                        className={`flex items-center gap-3 p-3 cursor-pointer border-b border-zinc-900/50 hover:bg-zinc-900/50 transition-colors ${isActive ? 'bg-zinc-900' : ''}`}
-                      >
-                         <div className="relative shrink-0 w-12 h-12">
-                             <div className="w-full h-full rounded-full bg-black border border-zinc-800 overflow-hidden flex items-center justify-center">
-                                 {displayAvatar ? <img src={displayAvatar} className="w-full h-full object-cover" /> : (isOff ? <Moon className="w-6 h-6 text-indigo-400 fill-indigo-400" /> : (chat.type === 'group' ? <Hash className="w-6 h-6 text-zinc-500"/> : <span className="text-lg font-bold">{displayName[0]?.toUpperCase()}</span>))}
-                             </div>
-                             {chatStatus && chatStatus !== 'offline' && chatStatus !== 'invisible' && <StatusIndicator status={chatStatus} className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ring-2 ring-black" />}
-                         </div>
-                         <div className="flex-1 min-w-0">
-                             <div className="flex justify-between items-center mb-0.5">
-                                 <h4 className="font-medium text-zinc-200 truncate text-sm flex items-center gap-1">
-                                     {displayName} {isVerified && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}
-                                 </h4>
-                                 {chat.lastMessage && <span className={`text-[10px] ${unread > 0 ? 'text-indigo-400 font-bold' : 'text-zinc-500'}`}>{new Date(chat.lastMessage.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>}
-                             </div>
-                             <div className="flex justify-between items-center">
-                                 <p className={`text-xs truncate max-w-[200px] ${unread > 0 ? 'text-zinc-100 font-medium' : 'text-zinc-500'}`}>
-                                     {isOff ? "Welcome to Night" : (lastMsgText || <span className="italic opacity-50">No messages yet</span>)}
-                                 </p>
-                                 {unread > 0 && <div className="bg-indigo-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">{unread > 99 ? '99+' : unread}</div>}
-                             </div>
-                         </div>
-                      </div>
-                    );
-                })
-            )}
-        </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    {displayedChats.length === 0 ? (
+                        <div className="text-center text-zinc-600 text-xs py-10">No chats found.</div>
+                    ) : (
+                        displayedChats.map(chat => {
+                            let displayName = chat.name;
+                            let displayAvatar = chat.avatar;
+                            let isVerified = false;
+                            let chatStatus: UserStatus | undefined = undefined;
+                            
+                            if (chat.type === 'dm') {
+                            const otherUser = chat.participants.find(p => p !== user.username) || 'Unknown';
+                            displayName = otherUser;
+                            displayAvatar = profilesCache[otherUser]?.avatar;
+                            isVerified = otherUser === 'night';
+                            chatStatus = onlineUsers[otherUser];
+                            } else if (chat.id === OFFICIAL_CHAT_ID) {
+                            isVerified = true;
+                            }
+        
+                            const isActive = activeChat?.id === chat.id;
+                            const isOff = chat.id === OFFICIAL_CHAT_ID;
+                            const unread = unreadCounts[chat.id] || 0;
+                            
+                            let lastMsgText = '';
+                            if (chat.lastMessage) {
+                                try {
+                                    const content = JSON.parse(chat.lastMessage.content);
+                                    lastMsgText = content.text || (content.attachments?.length ? '📷 Photo' : '');
+                                } catch { lastMsgText = chat.lastMessage.content; }
+                            }
+        
+                            return (
+                            <div 
+                                key={chat.id}
+                                onClick={() => setActiveChat(chat)}
+                                className={`flex items-center gap-3 p-3 cursor-pointer border-b border-zinc-900/50 hover:bg-zinc-900/50 transition-colors ${isActive ? 'bg-zinc-900' : ''}`}
+                            >
+                                <div className="relative shrink-0 w-12 h-12">
+                                    <div className="w-full h-full rounded-full bg-black border border-zinc-800 overflow-hidden flex items-center justify-center">
+                                        {displayAvatar ? <img src={displayAvatar} className="w-full h-full object-cover" /> : (isOff ? <Moon className="w-6 h-6 text-indigo-400 fill-indigo-400" /> : (chat.type === 'group' ? <Hash className="w-6 h-6 text-zinc-500"/> : <span className="text-lg font-bold">{displayName[0]?.toUpperCase()}</span>))}
+                                    </div>
+                                    {chatStatus && chatStatus !== 'offline' && chatStatus !== 'invisible' && <StatusIndicator status={chatStatus} className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ring-2 ring-black" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-center mb-0.5">
+                                        <h4 className="font-medium text-zinc-200 truncate text-sm flex items-center gap-1">
+                                            {displayName} {isVerified && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}
+                                        </h4>
+                                        {chat.lastMessage && <span className={`text-[10px] ${unread > 0 ? 'text-indigo-400 font-bold' : 'text-zinc-500'}`}>{new Date(chat.lastMessage.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>}
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <p className={`text-xs truncate max-w-[200px] ${unread > 0 ? 'text-zinc-100 font-medium' : 'text-zinc-500'}`}>
+                                            {isOff ? "Welcome to Night" : (lastMsgText || <span className="italic opacity-50">No messages yet</span>)}
+                                        </p>
+                                        {unread > 0 && <div className="bg-indigo-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">{unread > 99 ? '99+' : unread}</div>}
+                                    </div>
+                                </div>
+                            </div>
+                            );
+                        })
+                    )}
+                </div>
+            </>
+        ) : (
+            // FORUMS SIDEBAR
+            <div className="flex-1 flex flex-col">
+                <div className="p-4 border-b border-zinc-900 bg-zinc-950 cursor-pointer hover:bg-zinc-900 transition-colors" onClick={() => { setActiveCategory(null); setActiveThread(null); }}>
+                     <h2 className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Global Forums</h2>
+                     <p className="text-zinc-600 text-[10px]">Dashboard & Activity</p>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                    {forumCategories.map(cat => (
+                        <button 
+                            key={cat.id}
+                            onClick={() => { setActiveCategory(cat); setActiveThread(null); }}
+                            className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activeCategory?.id === cat.id ? 'bg-zinc-800 text-white' : 'hover:bg-zinc-900 text-zinc-400'}`}
+                        >
+                            <div className="w-10 h-10 bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-center shrink-0">
+                                {renderCategoryIcon(cat.icon)}
+                            </div>
+                            <div className="text-left">
+                                <div className="font-bold text-sm">{cat.name}</div>
+                                <div className="text-[10px] opacity-60 truncate">{cat.description}</div>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        )}
       </aside>
 
-      {/* --- MAIN CHAT AREA --- */}
-      <main className={`flex-1 flex flex-col h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat opacity-100 relative ${activeChat ? 'flex' : 'hidden md:flex'}`}>
+      {/* --- MAIN AREA --- */}
+      <main className={`flex-1 flex flex-col h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat opacity-100 relative ${(activeChat || activeThread) ? 'flex' : 'hidden md:flex'}`}>
          {/* Wallpaper Overlay */}
          <div className="absolute inset-0 bg-black opacity-95 z-0 pointer-events-none"></div>
 
-         {activeChat ? (
+         {viewMode === 'chats' && activeChat ? (
+             // ... [Rest of Chat UI] ... (Unchanged, just wrapped)
              <>
                 <header className="h-16 bg-zinc-950 flex items-center justify-between px-4 border-b border-zinc-900 z-10 shrink-0 pt-[env(safe-area-inset-top)] box-content">
                     <div className="flex items-center gap-3">
@@ -948,28 +1390,390 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                 </div>
                 ) : <div className="p-4 bg-zinc-950 border-t border-zinc-900 text-center text-zinc-600 text-sm flex items-center justify-center gap-2"><Lock className="w-4 h-4" />Read Only Channel</div>}
              </>
-         ) : (
-            <div className="flex-1 flex flex-col items-center justify-center relative z-10">
-                <SleepingCreature />
+         ) : viewMode === 'forums' && activeThread ? (
+             // ... [Rest of Forum Thread UI] ... (Unchanged)
+             <>
+                 <header className="h-16 bg-zinc-950/80 backdrop-blur-md flex items-center gap-3 px-4 border-b border-zinc-900 z-10 shrink-0 pt-[env(safe-area-inset-top)] box-content sticky top-0">
+                     <button onClick={() => setActiveThread(null)} className="text-zinc-400 p-1 hover:text-white"><ArrowLeft className="w-6 h-6"/></button>
+                     <div className="flex flex-col flex-1 min-w-0">
+                         <h2 className="text-white font-bold text-base flex items-center gap-2 truncate">
+                             <Hash className="w-4 h-4 text-zinc-500 flex-shrink-0"/> {activeThread.title}
+                         </h2>
+                         <div className="flex items-center gap-2 text-xs text-zinc-500">
+                            <span>in {activeCategory?.name}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1"><Eye className="w-3 h-3"/> {activeThread.views || 0}</span>
+                         </div>
+                     </div>
+                 </header>
+
+                 <div className="flex-1 overflow-y-auto z-10 custom-scrollbar flex flex-col scroll-smooth">
+                     
+                     {/* Hero Banner (if exists) */}
+                     <div className="relative w-full">
+                        {activeThread.banner && (
+                            <div className="w-full h-48 md:h-64 relative">
+                                <img src={activeThread.banner} className="w-full h-full object-cover mask-image-gradient-b" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                            </div>
+                        )}
+                        
+                        {/* Thread Header Context */}
+                        <div className={`px-4 md:px-8 pb-6 ${activeThread.banner ? '-mt-20 relative z-20' : 'mt-8'}`}>
+                            <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 rounded-2xl bg-black border-2 border-zinc-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xl">
+                                    {profilesCache[activeThread.author]?.avatar ? <img src={profilesCache[activeThread.author].avatar} className="w-full h-full object-cover"/> : <Hash className="w-8 h-8 text-zinc-600" />}
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 leading-tight drop-shadow-lg">{activeThread.title}</h1>
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        {activeThread.tags?.map(tag => (
+                                            <span key={tag} className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 text-[10px] font-bold uppercase tracking-wider rounded border border-indigo-500/30">{tag}</span>
+                                        ))}
+                                    </div>
+                                    <p className="text-zinc-400 text-sm">Started by <span className="text-white font-bold">{activeThread.author}</span> on {new Date(activeThread.created_at).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                        </div>
+                     </div>
+
+                     {/* Content Area */}
+                     <div className="px-4 pb-6">
+                        {/* Rendering Forum Posts as Chat Bubbles */}
+                        {(() => {
+                            const sortedPosts = [...forumPosts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                            let lastDateStr = '';
+
+                            return sortedPosts.map((p, i) => {
+                                const timestamp = new Date(p.created_at).getTime();
+                                const prevPost = sortedPosts[i - 1];
+                                const isSequence = prevPost && prevPost.author === p.author && (timestamp - new Date(prevPost.created_at).getTime() < 5 * 60 * 1000);
+                                const nextPost = sortedPosts[i + 1];
+                                const isLastInSequence = !nextPost || nextPost.author !== p.author || (new Date(nextPost.created_at).getTime() - timestamp >= 5 * 60 * 1000);
+                                
+                                const dateSeparatorStr = formatDateSeparator(timestamp);
+                                const showSeparator = dateSeparatorStr !== lastDateStr;
+                                if (showSeparator) lastDateStr = dateSeparatorStr;
+
+                                // Convert ForumPost to ChatMessage structure for compatibility
+                                const fakeMsg: ChatMessage = {
+                                    id: p.id,
+                                    sender: p.author,
+                                    content: p.content,
+                                    timestamp: timestamp
+                                };
+
+                                return (
+                                    <React.Fragment key={p.id}>
+                                        {showSeparator && (
+                                            <div className="flex justify-center my-6 sticky top-2 z-10">
+                                                <span className="bg-zinc-900/80 backdrop-blur text-zinc-400 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-zinc-800 shadow-sm">
+                                                    {dateSeparatorStr}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <MessageBubble 
+                                            msg={fakeMsg} 
+                                            isMe={p.author === user.username} 
+                                            senderProfile={profilesCache[p.author]} 
+                                            chatId={`forum_thread_${activeThread.id}`} 
+                                            onReact={() => {}} 
+                                            isGroup={true} 
+                                            onDelete={() => {}} 
+                                            onEdit={() => {}}
+                                            onProfileClick={setMiniProfileUser}
+                                            isSequence={!!isSequence}
+                                            isLastInSequence={isLastInSequence}
+                                        />
+                                    </React.Fragment>
+                                );
+                            });
+                        })()}
+                     </div>
+                     <div ref={forumEndRef} className="h-4"></div>
+                 </div>
+
+                 {/* Forum Input Box - Rich Media Support */}
+                 <div className="p-3 bg-zinc-950 border-t border-zinc-900 z-20 pb-[max(1rem,env(safe-area-inset-bottom))] box-content shrink-0 mb-4">
+                   <div className="relative flex items-end gap-2 max-w-4xl mx-auto">
+                        {forumAttachments.length > 0 && (
+                            <div className="absolute bottom-full left-0 mb-2 bg-zinc-900 p-2 rounded-lg border border-zinc-800 flex gap-2 shadow-xl z-50">
+                                {forumAttachments.map((att, i) => (
+                                    <div key={i} className="relative w-16 h-16 rounded overflow-hidden border border-zinc-700 bg-zinc-800 flex items-center justify-center group">
+                                        {att.type === 'image' ? <img src={att.url} className="w-full h-full object-cover"/> : <File className="w-8 h-8 text-zinc-500" />}
+                                        <button onClick={() => setForumAttachments([])} className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100"><X className="w-4 h-4"/></button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <button type="button" onClick={() => { setShowForumEmoji(!showForumEmoji); setShowForumGif(false); }} className={`p-3 rounded-full hover:bg-zinc-900 text-zinc-400 transition-colors ${showForumEmoji ? 'text-white' : ''}`}><Smile className="w-6 h-6"/></button>
+                        <button type="button" onClick={() => forumFileInputRef.current?.click()} className="p-3 rounded-full hover:bg-zinc-900 text-zinc-400 transition-colors"><Plus className="w-6 h-6"/></button>
+                        <input type="file" ref={forumFileInputRef} className="hidden" onChange={handleForumFileSelect} multiple />
+                        
+                        {showForumEmoji && (
+                            <div className="absolute bottom-16 left-0 bg-zinc-950 border border-zinc-800 rounded-xl p-2 w-72 grid grid-cols-8 gap-1 shadow-2xl z-50 h-64 overflow-y-auto custom-scrollbar animate-scale-in">
+                                {MORE_EMOJIS.map(e => (<button key={e} type="button" onClick={() => { setForumInputText(prev => prev + e); setShowForumEmoji(false); }} className="p-1 hover:bg-zinc-800 rounded text-xl">{e}</button>))}
+                            </div>
+                        )}
+
+                        <div className="flex-1 bg-zinc-900 rounded-lg flex items-center border border-zinc-800 focus-within:border-zinc-700 transition-colors">
+                             <textarea 
+                                ref={forumTextAreaRef}
+                                value={forumInputText}
+                                onChange={e => { setForumInputText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`; }}
+                                onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleForumSendMessage(); } }}
+                                rows={1}
+                                placeholder={`Reply to ${activeThread.title}...`}
+                                className="w-full bg-transparent border-none text-zinc-200 resize-none py-3 px-4 max-h-32 min-h-[44px] custom-scrollbar placeholder-zinc-500 outline-none text-sm"
+                                style={{ outline: 'none', boxShadow: 'none' }} 
+                             />
+                             <div className="relative pr-2">
+                                <button type="button" onClick={() => { setShowForumGif(!showForumGif); setShowForumEmoji(false); }} className={`p-2 rounded-full hover:bg-zinc-800 transition-colors ${showForumGif ? 'text-white' : 'text-zinc-500'}`}><Clapperboard className="w-5 h-5"/></button>
+                                {showForumGif && <GifPicker onSelect={(url) => { handleForumSendMessage(undefined, url); setShowForumGif(false); }} onClose={() => setShowForumGif(false)} />}
+                             </div>
+                        </div>
+
+                        {forumInputText.trim() || forumAttachments.length > 0 ? (
+                            <button onClick={() => handleForumSendMessage()} className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full transition-colors shadow-lg"><Send className="w-5 h-5 fill-current" /></button>
+                        ) : null}
+                   </div>
+                </div>
+             </>
+         ) : viewMode === 'forums' && activeCategory ? (
+             // ... [Rest of Forum List UI] ... (Unchanged)
+             <>
+                 <header className="h-16 bg-zinc-950 flex items-center justify-between px-6 border-b border-zinc-900 z-10 shrink-0 pt-[env(safe-area-inset-top)] box-content">
+                     <div className="flex items-center gap-3">
+                         <button onClick={() => setActiveCategory(null)} className="md:hidden text-zinc-400"><ArrowLeft className="w-5 h-5"/></button>
+                         <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            {renderCategoryIcon(activeCategory.icon)}
+                            {activeCategory.name}
+                         </h2>
+                     </div>
+                     <button onClick={() => setShowCreateThread(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 shadow-lg hover:shadow-indigo-900/50 transition-all"><Plus className="w-4 h-4"/> New Topic</button>
+                 </header>
+                 <div className="flex-1 overflow-y-auto px-6 py-6 z-10 custom-scrollbar">
+                     <div className="grid grid-cols-1 gap-3">
+                         {forumThreads.length === 0 ? (
+                             <div className="text-center text-zinc-600 py-20 flex flex-col items-center">
+                                 <MessageSquare className="w-12 h-12 mb-4 opacity-20"/>
+                                 <p>No threads here yet.</p>
+                                 <p className="text-sm">Be the first to ignite the conversation.</p>
+                             </div>
+                         ) : (
+                             forumThreads.map(thread => (
+                                 <div key={thread.id} onClick={() => setActiveThread(thread)} className="group relative bg-zinc-900/40 border border-zinc-800/50 rounded-xl p-0 hover:bg-zinc-900 hover:border-zinc-700 transition-all cursor-pointer overflow-hidden shadow-sm hover:shadow-xl">
+                                     {thread.banner && <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity"><img src={thread.banner} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" /></div>}
+                                     <div className="relative p-5 flex justify-between items-start gap-4">
+                                         <div className="flex-1 min-w-0">
+                                             <div className="flex items-center gap-2 mb-2">
+                                                 <div className="w-6 h-6 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden flex-shrink-0">
+                                                     {profilesCache[thread.author]?.avatar ? <img src={profilesCache[thread.author].avatar} className="w-full h-full object-cover"/> : <div className="text-[10px] w-full h-full flex items-center justify-center font-bold text-zinc-500">{thread.author[0]}</div>}
+                                                 </div>
+                                                 <span className="text-xs font-bold text-zinc-400">{thread.author}</span>
+                                                 <span className="text-zinc-600 text-[10px]">•</span>
+                                                 <span className="text-xs text-zinc-500">{new Date(thread.updated_at).toLocaleDateString()}</span>
+                                             </div>
+                                             <h3 className="font-bold text-zinc-200 text-lg mb-2 group-hover:text-white transition-colors truncate pr-4">{thread.title}</h3>
+                                             <div className="flex flex-wrap gap-2">
+                                                 {thread.tags?.map(t => <span key={t} className="px-2 py-0.5 rounded bg-black/50 border border-zinc-800 text-[10px] text-zinc-400 font-medium">{t}</span>)}
+                                                 {thread.attachments && thread.attachments.length > 0 && <span className="px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-[10px] text-indigo-400 font-medium flex items-center gap-1"><Paperclip className="w-3 h-3"/> Media</span>}
+                                             </div>
+                                         </div>
+                                         <div className="flex flex-col items-end gap-2 text-zinc-600 group-hover:text-zinc-400">
+                                             <ChevronRight className="w-5 h-5"/>
+                                         </div>
+                                     </div>
+                                 </div>
+                             ))
+                         )}
+                     </div>
+                 </div>
+             </>
+         ) : viewMode === 'forums' && !activeCategory ? (
+            // ... [Rest of Forum Dashboard] ... (Unchanged)
+            <div className="flex-1 flex flex-col p-6 overflow-y-auto custom-scrollbar relative">
+                {/* Snowfall Overlay */}
+                <Snowfall />
+
+                <div className="flex justify-between items-end mb-8 relative z-10">
+                    <div>
+                        <h1 className="text-3xl font-bold text-white mb-2 tracking-tight flex items-center gap-3">
+                            Global Forums <span className="text-2xl animate-pulse">❄️</span>
+                        </h1>
+                        <p className="text-zinc-500 text-sm">Dashboard & Recent Activity</p>
+                    </div>
+                </div>
+                
+                {/* Recent Activity Section */}
+                <div className="mb-8 relative z-10">
+                     <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2"><Flame className="w-4 h-4 text-orange-500"/> Trending & Recent</h2>
+                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {allForumThreads.length === 0 ? (
+                             <div className="col-span-2 text-center text-zinc-700 py-10 border border-zinc-900 border-dashed rounded-xl">
+                                 No global activity yet.
+                             </div>
+                        ) : (
+                             allForumThreads.slice(0, 6).map(thread => (
+                                 <div key={thread.id} onClick={() => { 
+                                     const cat = forumCategories.find(c => c.id === thread.category_id);
+                                     if (cat) setActiveCategory(cat);
+                                     setActiveThread(thread);
+                                 }} className="bg-zinc-900/40 backdrop-blur-sm border border-zinc-800 rounded-xl p-4 hover:bg-zinc-900 hover:border-zinc-700 transition-all cursor-pointer group flex gap-4 hover:shadow-lg shadow-black/50">
+                                     <div className="w-12 h-12 bg-black rounded-lg border border-zinc-800 shrink-0 overflow-hidden relative">
+                                        {thread.banner ? <img src={thread.banner} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" /> : <div className="w-full h-full flex items-center justify-center"><Hash className="w-5 h-5 text-zinc-700"/></div>}
+                                     </div>
+                                     <div className="flex-1 min-w-0">
+                                         <h4 className="font-bold text-zinc-200 text-sm truncate group-hover:text-white mb-1 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-zinc-400">{thread.title}</h4>
+                                         <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+                                             <span className="font-bold text-zinc-400">{thread.author}</span>
+                                             <span>in {forumCategories.find(c => c.id === thread.category_id)?.name || 'Unknown'}</span>
+                                         </div>
+                                     </div>
+                                 </div>
+                             ))
+                        )}
+                     </div>
+                </div>
+
+                {/* Categories Grid (Festive) */}
+                <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2 relative z-10"><Filter className="w-4 h-4"/> All Categories</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
+                    {forumCategories.map(cat => (
+                        <div 
+                            key={cat.id} 
+                            onClick={() => { setActiveCategory(cat); setActiveThread(null); }}
+                            className="bg-black/80 backdrop-blur-md border border-zinc-800 p-4 rounded-xl hover:border-zinc-600 transition-all cursor-pointer group hover:-translate-y-1 relative overflow-hidden"
+                        >
+                            {/* Festive Background Glows based on category */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            
+                            {/* Swaying Tree Decoration */}
+                            <SwayingTree />
+
+                            <div className="flex items-center gap-3 mb-2 relative z-10">
+                                <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-white group-hover:scale-110 transition-all shadow-lg group-hover:shadow-emerald-500/20">
+                                    {renderCategoryIcon(cat.icon, "w-4 h-4")}
+                                </div>
+                                <h3 className="font-bold text-zinc-300 group-hover:text-white flex items-center gap-2">
+                                    {cat.name}
+                                    {/* Append Festive Emojis Logic */}
+                                    <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs">
+                                        {cat.name.includes('Game') ? '🎮' : 
+                                         cat.name.includes('Music') ? '🎵' : 
+                                         cat.name.includes('Tech') ? '🎁' : '❄️'}
+                                    </span>
+                                </h3>
+                            </div>
+                            <p className="text-zinc-600 text-xs line-clamp-2 group-hover:text-zinc-500 transition-colors relative z-10">{cat.description}</p>
+                        </div>
+                    ))}
+                </div>
             </div>
+         ) : (
+            // --- IDLE STATE / SYSTEM STANDBY ---
+            <SystemStandby />
          )}
       </main>
 
-      {/* --- INFO PANEL (Toggleable on Mobile, Always Visible on Desktop if desired, but user asked for "Always Active") --- */}
-      {/* Modification: Show by default on desktop if activeChat is selected. */}
-      {/* Logic: If showInfoPanel is true OR (we are on desktop AND activeChat is selected), show it.
-          However, usually "Always Active" implies it occupies space permanently. 
-          To replicate WhatsApp Web behavior, the info panel is toggleable but often users want it open.
-          The request says "make the contact info tab always active instead of pressing a button to open it". 
-          I will interpret this as a permanent 3rd column on desktop. */}
-      
-      {activeChat && (
+      {/* --- CREATE THREAD MODAL --- (Unchanged) */}
+      {showCreateThread && activeCategory && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4 overflow-y-auto">
+                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-2xl animate-scale-in shadow-2xl flex flex-col max-h-[90vh]">
+                    <div className="p-4 border-b border-zinc-900 flex justify-between items-center bg-black rounded-t-2xl">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400">
+                                {renderCategoryIcon(activeCategory.icon)}
+                            </div>
+                            <div>
+                                <h3 className="text-white font-bold text-sm">Create New Topic</h3>
+                                <p className="text-zinc-500 text-[10px] uppercase tracking-wider">in {activeCategory.name}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setShowCreateThread(false)} className="text-zinc-500 hover:text-white"><X className="w-5 h-5"/></button>
+                    </div>
+                    
+                    <div className="p-6 overflow-y-auto custom-scrollbar space-y-5">
+                        {/* Banner Upload */}
+                        <div className="w-full h-32 rounded-xl border border-dashed border-zinc-800 bg-zinc-900/50 flex flex-col items-center justify-center cursor-pointer hover:bg-zinc-900 hover:border-zinc-700 transition-all group relative overflow-hidden">
+                            {newThreadBanner ? (
+                                <>
+                                    <img src={newThreadBanner} className="w-full h-full object-cover opacity-50 group-hover:opacity-80 transition-opacity" />
+                                    <button onClick={(e) => { e.stopPropagation(); setNewThreadBanner(''); }} className="absolute top-2 right-2 bg-black/50 p-1 rounded-full text-white hover:bg-red-500"><X className="w-4 h-4"/></button>
+                                </>
+                            ) : (
+                                <>
+                                    <ImageIcon className="w-8 h-8 text-zinc-600 mb-2 group-hover:text-white transition-colors" />
+                                    <span className="text-zinc-500 text-xs font-bold uppercase tracking-wider group-hover:text-zinc-300">Add Cover Image</span>
+                                    <input type="file" onChange={e => { if(e.target.files?.[0]) { const r = new FileReader(); r.onload=()=>setNewThreadBanner(r.result as string); r.readAsDataURL(e.target.files[0]); } }} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
+                                </>
+                            )}
+                        </div>
+
+                        {/* Title */}
+                        <div>
+                            <label className="text-xs font-bold text-zinc-500 uppercase block mb-2">Title</label>
+                            <input value={newThreadTitle} onChange={e => setNewThreadTitle(e.target.value)} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white text-lg font-bold outline-none focus:border-indigo-500 transition-colors placeholder-zinc-700" placeholder="What's this about?" />
+                        </div>
+
+                        {/* Tags */}
+                        <div>
+                            <label className="text-xs font-bold text-zinc-500 uppercase block mb-2">Tags</label>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {newThreadTags.map(tag => (
+                                    <span key={tag} className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold flex items-center gap-1 border border-indigo-500/30">
+                                        {tag}
+                                        <button onClick={() => setNewThreadTags(prev => prev.filter(t => t !== tag))} className="hover:text-white"><X className="w-3 h-3"/></button>
+                                    </span>
+                                ))}
+                                <input 
+                                    value={tagInput}
+                                    onChange={e => setTagInput(e.target.value)}
+                                    onKeyDown={handleAddTag}
+                                    className="bg-transparent text-white text-sm outline-none placeholder-zinc-600 min-w-[100px]"
+                                    placeholder="+ Add tag (Enter)"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div>
+                             <label className="text-xs font-bold text-zinc-500 uppercase block mb-2">Content</label>
+                             <textarea value={newThreadContent} onChange={e => setNewThreadContent(e.target.value)} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white text-sm outline-none resize-none h-40 focus:border-zinc-700 leading-relaxed custom-scrollbar" placeholder="Start the discussion..." />
+                        </div>
+
+                        {/* Attachments */}
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-xs font-bold text-zinc-500 uppercase">Attachments</label>
+                                <button onClick={() => createThreadFileRef.current?.click()} className="text-xs text-indigo-400 font-bold hover:text-indigo-300 flex items-center gap-1"><Paperclip className="w-3 h-3"/> Add Files</button>
+                                <input type="file" ref={createThreadFileRef} className="hidden" onChange={handleCreateThreadFileSelect} multiple />
+                            </div>
+                            {newThreadAttachments.length > 0 && (
+                                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                                    {newThreadAttachments.map((att, i) => (
+                                        <div key={i} className="relative w-20 h-20 rounded-lg border border-zinc-800 bg-zinc-900 flex items-center justify-center shrink-0 group">
+                                            {att.type === 'image' ? <img src={att.url} className="w-full h-full object-cover rounded-lg opacity-70" /> : <File className="w-8 h-8 text-zinc-600" />}
+                                            <button onClick={() => setNewThreadAttachments(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 bg-red-500 rounded-full p-0.5 text-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity"><X className="w-3 h-3"/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="p-4 border-t border-zinc-900 bg-black rounded-b-2xl flex justify-end gap-3">
+                        <button onClick={() => setShowCreateThread(false)} className="px-6 py-2 text-zinc-500 text-sm font-bold hover:text-white transition-colors">Cancel</button>
+                        <button onClick={handleCreateForumThread} disabled={!newThreadTitle || !newThreadContent} className="px-8 py-2 bg-white text-black rounded-xl text-sm font-bold disabled:opacity-50 hover:bg-zinc-200 transition-colors shadow-lg shadow-white/10">Post Topic</button>
+                    </div>
+                </div>
+            </div>
+      )}
+
+      {/* --- INFO PANEL --- */}
+      {viewMode === 'chats' && activeChat && (
         <aside className={`w-[300px] bg-black border-l border-zinc-900 flex-col z-20 shrink-0 pt-[env(safe-area-inset-top)] ${showInfoPanel ? 'hidden md:flex' : 'hidden'}`}>
             <div className="h-16 flex items-center px-4 border-b border-zinc-900 bg-zinc-950 shrink-0">
-                {/* No Close button on desktop if it's meant to be always active, but keeping it toggleable via header button is safer UX. 
-                    However, request said "always active". I will remove the close button for desktop view 
-                    and rely on the header toggle if user REALLY wants to close it, 
-                    but default state `showInfoPanel` is true. */}
                 <div className="font-bold text-white text-base">Contact Info</div>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -989,8 +1793,8 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
         </aside>
       )}
 
-      {/* Mobile Info Overlay - Only shows when explicitly toggled on mobile */}
-      {showInfoPanel && activeChat && (
+      {/* Mobile Info Overlay */}
+      {showInfoPanel && activeChat && viewMode === 'chats' && (
         <div className="fixed inset-0 z-[60] bg-black md:hidden animate-fade-in flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
             <div className="h-14 flex items-center px-4 border-b border-zinc-900">
                     <button onClick={() => setShowInfoPanel(false)} className="mr-4"><ChevronLeft className="w-6 h-6 text-zinc-400" /></button>
@@ -1013,7 +1817,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
         </div>
       )}
 
-      {/* ... Settings, AddFriend, CreateGroup Modals (Unchanged) ... */}
       {showSettings && (
          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4 md:p-0">
            <div className="w-full h-full md:max-w-2xl md:h-[80vh] bg-black md:border border-zinc-800 md:rounded-3xl overflow-hidden flex flex-col shadow-2xl relative animate-scale-in">
@@ -1022,7 +1825,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                   <button onClick={() => setShowSettings(false)} className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800"><X className="w-6 h-6"/></button>
               </div>
               <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-black">
-                  {/* Settings Content (Same as before but cleaner layout) */}
                   <div className="h-40 bg-zinc-900 relative group cursor-pointer w-full shrink-0">
                     {settingsBanner ? <img src={settingsBanner} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-zinc-700 font-bold uppercase tracking-widest bg-gradient-to-br from-zinc-800 to-black">Upload Banner</div>}
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Camera className="text-white w-8 h-8"/></div>
@@ -1054,25 +1856,40 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-4">
            <div className="bg-black border border-zinc-800 rounded-2xl p-6 w-full max-w-sm animate-scale-in">
               <h3 className="text-white font-bold mb-4 uppercase text-xs">New Contact</h3>
-              <input value={addFriendInput} onChange={e => setAddFriendInput(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-white text-sm mb-4 outline-none" placeholder="Username" />
               
-              {/* Also show incoming requests here */}
-              {(myProfile?.incomingRequests?.length || 0) > 0 && (
-                  <div className="mb-4">
-                      <div className="text-[10px] font-bold text-zinc-600 mb-2 uppercase">Pending Requests</div>
-                      {myProfile?.incomingRequests.map(req => (
-                          <div key={req} className="flex justify-between items-center bg-zinc-900 p-2 rounded-lg mb-1">
-                              <span className="text-sm font-bold text-zinc-300">{req}</span>
-                              <div className="flex gap-1">
-                                  <button onClick={() => { handleAcceptFriend(req); addToast('Accepted', 'success'); }} className="p-1 bg-green-500/20 text-green-400 rounded"><Check className="w-4 h-4"/></button>
-                                  <button onClick={() => handleRejectFriend(req)} className="p-1 bg-red-500/20 text-red-400 rounded"><X className="w-4 h-4"/></button>
+              {/* PENDING REQUESTS SECTION */}
+              {(myProfile?.incomingRequests?.length || 0) > 0 ? (
+                  <div className="mb-6 bg-zinc-900/50 rounded-xl p-3 border border-zinc-800">
+                      <div className="text-[10px] font-bold text-red-400 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                        Pending Requests
+                      </div>
+                      <div className="space-y-2">
+                          {myProfile?.incomingRequests.map(req => (
+                              <div key={req} className="flex justify-between items-center bg-black p-2 rounded-lg border border-zinc-800">
+                                  <div className="flex items-center gap-2">
+                                     <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-xs text-zinc-500">{req[0]}</div>
+                                     <span className="text-sm font-bold text-zinc-200">{req}</span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                      <button onClick={() => { handleAcceptFriend(req); addToast('Friend Accepted', 'success'); }} className="p-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-md transition-colors" title="Accept"><Check className="w-4 h-4"/></button>
+                                      <button onClick={() => handleRejectFriend(req)} className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-md transition-colors" title="Decline"><X className="w-4 h-4"/></button>
+                                  </div>
                               </div>
-                          </div>
-                      ))}
+                          ))}
+                      </div>
                   </div>
-              )}
+              ) : null}
 
-              <div className="flex justify-end gap-2"><button onClick={() => setShowAddFriend(false)} className="px-4 py-2 text-zinc-500">Cancel</button><button onClick={() => { sendFriendRequest(user.username, addFriendInput.toLowerCase()); setShowAddFriend(false); addToast('Sent', 'success'); }} className="px-4 py-2 bg-white text-black rounded-lg font-bold">Add</button></div>
+              <div className="mb-2">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1">Add by Username</label>
+                  <input value={addFriendInput} onChange={e => setAddFriendInput(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-white text-sm outline-none focus:border-white transition-colors" placeholder="Username" />
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4">
+                  <button onClick={() => setShowAddFriend(false)} className="px-4 py-2 text-zinc-500 text-xs font-bold hover:text-white">Cancel</button>
+                  <button onClick={() => { if(addFriendInput) { sendFriendRequest(user.username, addFriendInput.toLowerCase()); setShowAddFriend(false); addToast('Request Sent', 'success'); } }} className="px-4 py-2 bg-white text-black rounded-lg text-xs font-bold hover:bg-zinc-200">Send Request</button>
+              </div>
            </div>
          </div>
       )}

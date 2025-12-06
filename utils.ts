@@ -1,9 +1,22 @@
+
 import { createClient } from '@supabase/supabase-js';
-import { EncryptedFile, ChatMessage, ChatRoom, UserProfile, User, MessageContent, UserStatus } from './types';
+import { EncryptedFile, ChatMessage, ChatRoom, UserProfile, User, MessageContent, UserStatus, ForumCategory, ForumThread, ForumPost, Attachment } from './types';
 
 // --- Supabase Config ---
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://qesejuvizzzkwqedeqwk.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_LQrnUGOne0SsfZs9gSJeXA_6GDAcGU6';
+// Safe access to process.env for browser environments
+const getEnv = (key: string, fallback: string) => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      return process.env[key];
+    }
+  } catch (e) {
+    // Ignore error if process is not defined
+  }
+  return fallback;
+};
+
+const SUPABASE_URL = getEnv('SUPABASE_URL', 'https://sadylwdqwawqstvlrbex.supabase.co');
+const SUPABASE_KEY = getEnv('SUPABASE_KEY', 'sb_publishable_LPj1KJOvVsJ-ZXAsbqE14A_o9CMmtGF');
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     realtime: {
@@ -717,18 +730,19 @@ export const addMessageReaction = async (chatId: string, messageId: string, emoj
   }).eq('id', messageId);
 };
 
-// --- SUBSCRIPTIONS ---
+// --- GLOBAL SUBSCRIPTION ---
 export const subscribeToGlobalMessages = (
     onMessageEvent: (payload: any) => void, 
     onChatEvent: (payload: any) => void,
-    onFriendEvent: (payload: any) => void
+    onFriendEvent: (payload: any) => void,
+    onForumEvent: (payload: any) => void // New Handler for forums
 ) => {
-    // We create a SINGLE channel but attach multiple handlers.
-    // This allows us to listen to ALL changes relevant to the chat experience.
     const channel = supabase.channel('global-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, onMessageEvent)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, onChatEvent)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, onFriendEvent)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'forum_threads' }, onForumEvent)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'forum_posts' }, onForumEvent)
         .subscribe();
         
     return () => { supabase.removeChannel(channel); };
@@ -783,4 +797,69 @@ export const rejectFriendRequest = async (me: string, them: string) => {
 };
 export const removeFriend = async (me: string, them: string) => {
     await supabase.from('friend_requests').delete().or(`and(sender.eq.${me},receiver.eq.${them}),and(sender.eq.${them},receiver.eq.${me})`);
+};
+
+// --- FORUMS API ---
+
+export const getForumCategories = async (): Promise<ForumCategory[]> => {
+    const { data } = await supabase.from('forum_categories').select('*').order('name');
+    return (data || []) as ForumCategory[];
+};
+
+export const getForumThreads = async (categoryId: string): Promise<ForumThread[]> => {
+    const { data } = await supabase.from('forum_threads').select('*').eq('category_id', categoryId).order('updated_at', { ascending: false });
+    return (data || []) as ForumThread[];
+};
+
+export const getAllForumThreads = async (): Promise<ForumThread[]> => {
+    const { data } = await supabase.from('forum_threads').select('*').order('updated_at', { ascending: false }).limit(50);
+    return (data || []) as ForumThread[];
+};
+
+export const createForumThread = async (
+    categoryId: string, 
+    author: string, 
+    title: string, 
+    content: string, 
+    tags: string[] = [], 
+    banner?: string, 
+    attachments?: Attachment[]
+) => {
+    const { data, error } = await supabase.from('forum_threads').insert({
+        category_id: categoryId,
+        author,
+        title,
+        content,
+        tags,
+        banner,
+        attachments: attachments || []
+    }).select().single();
+    if (error) throw error;
+    return data as ForumThread;
+};
+
+export const getForumPosts = async (threadId: string): Promise<ForumPost[]> => {
+    const { data } = await supabase.from('forum_posts').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
+    return (data || []) as ForumPost[];
+};
+
+export const createForumPost = async (threadId: string, author: string, content: string) => {
+    const { error } = await supabase.from('forum_posts').insert({
+        thread_id: threadId,
+        author,
+        content
+    });
+    if (error) throw error;
+    
+    // Update thread timestamp
+    await supabase.from('forum_threads').update({ updated_at: new Date().toISOString() }).eq('id', threadId);
+};
+
+export const incrementThreadView = async (threadId: string) => {
+    // If the rpc doesn't exist yet, this will fail silently on client side or throw error
+    // Use raw update for fallback compatibility if strict SQL migration isn't run
+    const { error } = await supabase.rpc('increment_thread_view', { row_id: threadId });
+    if (error) {
+       // Fallback: Just ignore or try update (though update is race-condition prone without rpc)
+    }
 };
