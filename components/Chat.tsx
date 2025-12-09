@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment, UserStatus, ForumCategory, ForumThread, ForumPost } from '../types';
+import { User, ChatRoom, ChatMessage, UserProfile, MessageContent, Attachment, UserStatus, ForumCategory, ForumThread, ForumPost, ReplyContext } from '../types';
 import { 
   getMessages, saveMessageToDB, prepareMessagePayload, getMyChats, getWelcomeChat,
   getUserProfile, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend,
@@ -16,7 +17,7 @@ import {
   Image as ImageIcon, ExternalLink, Settings, Link as LinkIcon, Moon, Sparkles, Loader2,
   ChevronLeft, Plus, Smile, MoreVertical, Trash, Lock, Edit2, Copy, File, Download, UserMinus, Mail,
   Search, Clapperboard, Flame, Gamepad2, Coffee, BookOpen, Music, ChevronRight, Circle, AlertTriangle, Filter, Globe, Cpu, ArrowLeft,
-  GraduationCap, Library, Eye, Tag, Calendar, Snowflake, Shield, Zap, Ghost, Radio
+  GraduationCap, Library, Eye, Tag, Calendar, Snowflake, Shield, Zap, Ghost, Radio, Reply, CornerUpRight
 } from 'lucide-react';
 
 interface ChatProps {
@@ -263,7 +264,6 @@ const SystemStandby = () => {
 };
 
 // --- SUB-COMPONENTS ---
-// ... (OnboardingModal, GifPicker, MessageBubble, MiniProfile - Unchanged from previous version)
 
 const OnboardingModal = ({ onCreateOwn, onTemplate, onSkip }: { onCreateOwn: () => void, onTemplate: (name: string, desc: string) => void, onSkip: () => void }) => {
     return (
@@ -338,12 +338,14 @@ interface MessageBubbleProps {
   onDelete: (id: string) => void;
   onEdit: (id: string, newText: string) => void;
   onProfileClick: (username: string) => void;
+  onReply: (msg: ChatMessage) => void;
+  onForward: (msg: ChatMessage) => void;
   isSequence: boolean;
   isLastInSequence: boolean;
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ 
-  msg, isMe, senderProfile, chatId, onReact, isGroup, onDelete, onEdit, onProfileClick, isSequence, isLastInSequence
+  msg, isMe, senderProfile, chatId, onReact, isGroup, onDelete, onEdit, onProfileClick, onReply, onForward, isSequence, isLastInSequence
 }) => {
   let content: MessageContent = { text: msg.content };
   try {
@@ -356,6 +358,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const links = detectLinks(content.text);
   const hasReactions = content.reactions && Object.keys(content.reactions).length > 0;
   const handleSaveEdit = () => { onEdit(msg.id, editText); setIsEditing(false); };
+  
   return (
     <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start items-start'} ${isSequence ? 'mt-0.5' : 'mt-6'} ${hasReactions ? 'mb-2' : ''} group animate-fade-in-up relative`}>
       {!isMe && (
@@ -376,8 +379,28 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                <button onClick={() => setShowPicker(!showPicker)} className="hover:scale-125 transition-transform px-1 text-sm text-zinc-400 hover:text-white"><Plus className="w-3 h-3" /></button>
                {showPicker && (<div className="absolute top-full mt-2 left-0 w-64 bg-black border border-zinc-800 rounded-lg shadow-xl p-2 grid grid-cols-8 gap-1 z-50">{MORE_EMOJIS.map(e => (<button key={e} onClick={() => { onReact(msg.id, e); setShowPicker(false); }} className="text-sm hover:bg-zinc-800 rounded p-1">{e}</button>))}</div>)}
              </div>
-             {isMe && (<div className="bg-zinc-950 border border-zinc-800 rounded-full flex p-1 shadow-lg gap-1"><button onClick={() => setIsEditing(true)} className="p-1 text-zinc-400 hover:text-white"><Edit2 className="w-3 h-3" /></button><button onClick={() => onDelete(msg.id)} className="p-1 text-zinc-400 hover:text-red-500"><Trash className="w-3 h-3" /></button></div>)}
+             <div className="bg-zinc-950 border border-zinc-800 rounded-full flex p-1 shadow-lg gap-1">
+                <button onClick={() => onReply(msg)} className="p-1 text-zinc-400 hover:text-white" title="Reply"><Reply className="w-3 h-3" /></button>
+                <button onClick={() => onForward(msg)} className="p-1 text-zinc-400 hover:text-white" title="Forward"><CornerUpRight className="w-3 h-3" /></button>
+                {isMe && (<><button onClick={() => setIsEditing(true)} className="p-1 text-zinc-400 hover:text-white"><Edit2 className="w-3 h-3" /></button><button onClick={() => onDelete(msg.id)} className="p-1 text-zinc-400 hover:text-red-500"><Trash className="w-3 h-3" /></button></>)}
+             </div>
           </div>
+          
+          {/* Forward Label */}
+          {content.isForwarded && (
+             <div className="flex items-center gap-1 mb-1 text-[10px] text-zinc-500 italic">
+                 <CornerUpRight className="w-3 h-3" /> Forwarded
+             </div>
+          )}
+
+          {/* Reply Context */}
+          {content.replyTo && (
+              <div className="mb-2 pl-2 border-l-2 border-indigo-500/50 rounded-r bg-zinc-900/30 p-1 text-xs">
+                 <div className="font-bold text-indigo-400 mb-0.5">{content.replyTo.sender}</div>
+                 <div className="text-zinc-400 line-clamp-1">{content.replyTo.text}</div>
+              </div>
+          )}
+
           {content.attachments && content.attachments.map((att, idx) => (
             <div key={idx} className="mb-2">
               {att.type === 'image' ? (<div className="rounded-lg overflow-hidden border border-black/5 bg-black/5"><img src={att.url} alt="attachment" className="max-w-full max-h-[300px] object-cover block" /></div>) : (<div className="flex items-center gap-3 p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg hover:bg-zinc-900 transition-colors"><div className="p-2 bg-zinc-800 rounded text-zinc-400"><File className="w-5 h-5"/></div><div className="flex-1 min-w-0"><div className="text-sm font-medium text-zinc-200 truncate">{att.name || "File Attachment"}</div><div className="text-xs text-zinc-500">{att.size ? Math.round(att.size/1024) + ' KB' : 'Binary File'}</div></div><a href={att.url} download={att.name || "download"} className="p-2 text-zinc-400 hover:text-white"><Download className="w-4 h-4" /></a></div>)}
@@ -389,7 +412,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         </div>
         <div className={`flex items-center gap-2 mt-1 ${isMe ? 'mr-1 flex-row-reverse' : 'ml-1'}`}>
           {isLastInSequence ? (<div className={`text-[9px] opacity-50 font-medium flex items-center gap-1`}>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}<button onClick={() => setShowPicker(!showPicker)} className="md:hidden text-zinc-500 hover:text-white p-2 -my-2"><Smile className="w-3 h-3" /></button></div>) : (<button onClick={() => setShowPicker(!showPicker)} className="md:hidden text-zinc-500 hover:text-white p-2 -my-2 opacity-50"><Smile className="w-3 h-3" /></button>)}
-          {showPicker && (<div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm md:hidden" onClick={() => setShowPicker(false)}><div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-[90%] max-w-[320px] shadow-2xl animate-scale-in" onClick={e => e.stopPropagation()}><div className="text-center mb-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">React</div><div className="grid grid-cols-6 gap-3 mb-6">{REACTION_EMOJIS.map(emoji => (<button key={emoji} onClick={() => { onReact(msg.id, emoji); setShowPicker(false); }} className="text-3xl hover:bg-zinc-800 p-2 rounded-xl transition-colors flex items-center justify-center bg-black/50 border border-zinc-800/50">{emoji}</button>))}</div><div className="h-px bg-zinc-800 my-4"></div><div className="grid grid-cols-8 gap-2 h-48 overflow-y-auto custom-scrollbar p-1">{MORE_EMOJIS.map(e => (<button key={e} onClick={() => { onReact(msg.id, e); setShowPicker(false); }} className="text-xl hover:bg-zinc-800 rounded-lg p-2 flex items-center justify-center">{e}</button>))}</div>{isMe && (<div className="mt-4 flex gap-3 pt-4 border-t border-zinc-800"><button onClick={() => { setIsEditing(true); setShowPicker(false); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800 rounded-xl text-sm font-bold text-white hover:bg-zinc-700 transition-colors"><Edit2 className="w-4 h-4"/> Edit</button><button onClick={() => { onDelete(msg.id); setShowPicker(false); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 text-red-400 rounded-xl text-sm font-bold hover:bg-red-500/20 transition-colors"><Trash className="w-4 h-4"/> Delete</button></div>)}</div></div>)}
+          {showPicker && (<div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm md:hidden" onClick={() => setShowPicker(false)}><div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-[90%] max-w-[320px] shadow-2xl animate-scale-in" onClick={e => e.stopPropagation()}><div className="text-center mb-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">React</div><div className="grid grid-cols-6 gap-3 mb-6">{REACTION_EMOJIS.map(emoji => (<button key={emoji} onClick={() => { onReact(msg.id, emoji); setShowPicker(false); }} className="text-3xl hover:bg-zinc-800 p-2 rounded-xl transition-colors flex items-center justify-center bg-black/50 border border-zinc-800/50">{emoji}</button>))}</div><div className="h-px bg-zinc-800 my-4"></div><div className="grid grid-cols-8 gap-2 h-48 overflow-y-auto custom-scrollbar p-1">{MORE_EMOJIS.map(e => (<button key={e} onClick={() => { onReact(msg.id, e); setShowPicker(false); }} className="text-xl hover:bg-zinc-800 rounded-lg p-2 flex items-center justify-center">{e}</button>))}</div><div className="mt-4 flex gap-3 pt-4 border-t border-zinc-800"><button onClick={() => { onReply(msg); setShowPicker(false); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800 rounded-xl text-sm font-bold text-white hover:bg-zinc-700 transition-colors"><Reply className="w-4 h-4"/> Reply</button><button onClick={() => { onForward(msg); setShowPicker(false); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800 rounded-xl text-sm font-bold text-white hover:bg-zinc-700 transition-colors"><CornerUpRight className="w-4 h-4"/> Forward</button></div>{isMe && (<div className="mt-2 flex gap-3 pt-2 border-t border-zinc-800"><button onClick={() => { setIsEditing(true); setShowPicker(false); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800 rounded-xl text-sm font-bold text-white hover:bg-zinc-700 transition-colors"><Edit2 className="w-4 h-4"/> Edit</button><button onClick={() => { onDelete(msg.id); setShowPicker(false); }} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 text-red-400 rounded-xl text-sm font-bold hover:bg-red-500/20 transition-colors"><Trash className="w-4 h-4"/> Delete</button></div>)}</div></div>)}
         </div>
       </div>
     </div>
@@ -429,7 +452,7 @@ const MiniProfile = ({ username, initialData, onClose, onMessage, status }: { us
     );
 };
 
-// ... (ChannelInfoContent, Toast, formatDateSeparator - Unchanged)
+// ... (ChannelInfoContent - Unchanged)
 const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, handleGroupLogoUpload, setMiniProfileUser, onUpdateDescription, myFriends, onAddMembers, onlineUsers }: { activeChat: ChatRoom; user: User; profilesCache: Record<string, UserProfile>; groupLogoRef: React.RefObject<HTMLInputElement>; handleGroupLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void; setMiniProfileUser: (user: string | null) => void; onUpdateDescription: (desc: string) => void; myFriends: string[]; onAddMembers: (members: string[]) => void; onlineUsers: Record<string, UserStatus>; }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editDesc, setEditDesc] = useState(activeChat.description || '');
@@ -465,6 +488,127 @@ const ChannelInfoContent = ({ activeChat, user, profilesCache, groupLogoRef, han
   );
 };
 
+// --- Forward Modal ---
+const ForwardModal = ({ onClose, onSend, chats, profilesCache, currentUser }: { onClose: () => void, onSend: (selectedChatIds: string[]) => void, chats: ChatRoom[], profilesCache: Record<string, UserProfile>, currentUser: User }) => {
+    const [selected, setSelected] = useState<string[]>([]);
+    const [search, setSearch] = useState('');
+    
+    const filteredChats = chats.filter(chat => {
+        let name = chat.name;
+        if (chat.type === 'dm') {
+            const other = chat.participants.find(p => p !== currentUser.username);
+            if (other) name = other;
+        }
+        return name.toLowerCase().includes(search.toLowerCase());
+    });
+
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4" onClick={onClose}>
+            <div className="bg-black border border-zinc-800 rounded-3xl p-0 w-full max-w-md animate-scale-in shadow-2xl flex flex-col max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-zinc-900 bg-zinc-950">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-white font-bold uppercase text-xs flex items-center gap-2 tracking-widest">
+                            <CornerUpRight className="w-4 h-4 text-indigo-500"/> Forward Message
+                        </h3>
+                        <button onClick={onClose} className="p-1 rounded-full hover:bg-zinc-900 text-zinc-500 hover:text-white transition-colors"><X className="w-4 h-4"/></button>
+                    </div>
+                    <div className="relative group">
+                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500 group-focus-within:text-white transition-colors" />
+                        <input 
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search people or groups..."
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-2 pl-9 pr-4 text-sm text-white placeholder-zinc-500 outline-none focus:border-indigo-500/50 transition-all"
+                            autoFocus
+                        />
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto bg-black p-2 custom-scrollbar">
+                    {filteredChats.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-zinc-600 gap-2">
+                             <Search className="w-8 h-8 opacity-20"/>
+                             <span className="text-xs">No chats found</span>
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            {filteredChats.map(chat => {
+                                let displayName = chat.name;
+                                let avatar = chat.avatar;
+                                let isVerified = false;
+                                
+                                if (chat.type === 'dm') {
+                                     const other = chat.participants.find(p => p !== currentUser.username) || 'Unknown';
+                                     displayName = other;
+                                     avatar = profilesCache[other]?.avatar;
+                                     if (other === 'night') isVerified = true;
+                                } else if (chat.id === OFFICIAL_CHAT_ID) {
+                                    isVerified = true;
+                                }
+
+                                const isSelected = selected.includes(chat.id);
+
+                                return (
+                                    <div 
+                                        key={chat.id} 
+                                        onClick={() => setSelected(prev => prev.includes(chat.id) ? prev.filter(id => id !== chat.id) : [...prev, chat.id])} 
+                                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border ${isSelected ? 'bg-indigo-900/20 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.1)]' : 'hover:bg-zinc-900 border-transparent'}`}
+                                    >
+                                        <div className="relative w-10 h-10">
+                                             <div className={`w-full h-full rounded-full bg-zinc-900 overflow-hidden flex items-center justify-center border ${isSelected ? 'border-indigo-500/30' : 'border-zinc-800'}`}>
+                                                {avatar ? (
+                                                    <img src={avatar} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    chat.type === 'group' ? <Users className="w-5 h-5 text-zinc-500"/> : <span className="text-sm font-bold text-zinc-500">{displayName[0]?.toUpperCase()}</span>
+                                                )}
+                                             </div>
+                                             {isSelected && (
+                                                 <div className="absolute -bottom-1 -right-1 bg-indigo-500 text-white rounded-full p-0.5 border-2 border-black animate-scale-in">
+                                                     <Check className="w-3 h-3" />
+                                                 </div>
+                                             )}
+                                        </div>
+                                        
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm text-zinc-200 font-bold truncate flex items-center gap-1">
+                                                {displayName}
+                                                {isVerified && <VerifiedIcon className="w-3 h-3 text-[#1d9bf0]" />}
+                                            </div>
+                                            <div className="text-xs text-zinc-500 truncate">
+                                                {chat.type === 'group' ? `${chat.participants.length} members` : 'Direct Message'}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-zinc-700'}`}>
+                                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+                
+                <div className="p-4 border-t border-zinc-900 bg-zinc-950 flex justify-between items-center">
+                    <div className="text-xs text-zinc-500 font-medium">
+                        {selected.length === 0 ? 'Select chats' : `${selected.length} selected`}
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={onClose} className="px-4 py-2 text-zinc-500 text-xs font-bold hover:text-white transition-colors">Cancel</button>
+                        <button 
+                            onClick={() => onSend(selected)} 
+                            disabled={selected.length === 0} 
+                            className="px-6 py-2 bg-white text-black rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-zinc-200 transition-colors shadow-lg shadow-white/10 flex items-center gap-2"
+                        >
+                            Send <Send className="w-3 h-3" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 interface Toast {
   id: number;
   message: string;
@@ -486,11 +630,13 @@ const formatDateSeparator = (timestamp: number) => {
 const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [activeChat, setActiveChat] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  // NEW: Message Cache for instant loading
   const [messagesCache, setMessagesCache] = useState<Record<string, ChatMessage[]>>({});
 
   const [inputText, setInputText] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null); // NEW: Reply State
+  const [forwardingMessage, setForwardingMessage] = useState<ChatMessage | null>(null); // NEW: Forward State
+
   const [myChats, setMyChats] = useState<ChatRoom[]>([]);
   const [myProfile, setMyProfile] = useState<UserProfile | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
@@ -498,13 +644,13 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [filterMode, setFilterMode] = useState<'all' | 'unread' | 'groups'>('all');
-  const [viewMode, setViewMode] = useState<'chats' | 'forums'>('chats'); // New View Mode
+  const [viewMode, setViewMode] = useState<'chats' | 'forums'>('chats'); 
 
   // Forum State
   const [forumCategories, setForumCategories] = useState<ForumCategory[]>([]);
   const [activeCategory, setActiveCategory] = useState<ForumCategory | null>(null);
   const [forumThreads, setForumThreads] = useState<ForumThread[]>([]);
-  const [allForumThreads, setAllForumThreads] = useState<ForumThread[]>([]); // For Dashboard
+  const [allForumThreads, setAllForumThreads] = useState<ForumThread[]>([]); 
   const [activeThread, setActiveThread] = useState<ForumThread | null>(null);
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
   
@@ -534,7 +680,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [showInputEmoji, setShowInputEmoji] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [showInfoPanel, setShowInfoPanel] = useState(true); // Default True for Desktop
+  const [showInfoPanel, setShowInfoPanel] = useState(true); 
   
   // Presence State
   const [userStatus, setUserStatus] = useState<UserStatus>('online');
@@ -660,34 +806,24 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   // OPTIMIZED CHAT SWITCHING
   useEffect(() => {
      if (activeChat) {
+         setReplyingTo(null); // Clear reply when switching
          const chatId = activeChat.id;
-         
-         // 1. Check Cache first for INSTANT loading
          if (messagesCache[chatId]) {
              setMessages(messagesCache[chatId]);
          } else {
-             setMessages([]); // Only clear if no cache to show loading state
+             setMessages([]); 
          }
-
-         // 2. Fetch Fresh History (Background Sync)
          getMessages(chatId).then(msgs => {
-             // Update cache with fresh data
              setMessagesCache(prev => ({ ...prev, [chatId]: msgs }));
-             
-             // If user is still on this chat, update UI
              if (activeChatIdRef.current === chatId) {
                  setMessages(msgs);
              }
          });
-
-         // 3. Load Profiles
          getProfiles(activeChat.participants).then(profiles => { setProfilesCache(prev => ({ ...prev, ...profiles })); });
-         
-         // 4. Handle Unread State
          setUnreadCounts(prev => ({ ...prev, [activeChat.id]: 0 }));
          markChatRead(activeChat.id, user.username, activeChat.lastMessage?.timestamp || 0);
      }
-  }, [activeChat?.id]); // Only re-run if ID changes, not object reference
+  }, [activeChat?.id]); 
 
   useEffect(() => { activeChatIdRef.current = activeChat?.id || null; }, [activeChat]);
   useEffect(() => { myChatsRef.current = myChats; }, [myChats]);
@@ -705,7 +841,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
       if (activeThread) {
           incrementThreadView(activeThread.id);
           getForumPosts(activeThread.id).then(posts => {
-              // Ensure we cache profiles for forum participants
               const authors = new Set(posts.map(p => p.author));
               authors.add(activeThread.author);
               const missing = Array.from(authors).filter(a => !profilesCache[a]);
@@ -735,7 +870,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
           try { contentStr = await decryptMessage(payload.iv, payload.content, activeChat.id); } catch(e) { console.error("Broadcast Decrypt Fail", e); }
           const newMsg: ChatMessage = { id: payload.id, sender: payload.sender, content: contentStr, timestamp: new Date(payload.created_at).getTime() };
           
-          // Update State & Cache
           setMessages(prev => { 
              if (prev.some(m => m.id === newMsg.id)) return prev; 
              return [...prev, newMsg]; 
@@ -765,7 +899,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
              let contentStr = ''; try { contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId); } catch(e) { }
              const newMessageObj: ChatMessage = { id: newRecord.id, sender: newRecord.sender, content: contentStr, timestamp: new Date(newRecord.created_at).getTime() };
              
-             // Update Cache for this chat regardless of if it's active
              setMessagesCache(prev => ({
                 ...prev,
                 [chatId]: [...(prev[chatId] || []), newMessageObj]
@@ -797,7 +930,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
        if (eventType === 'UPDATE') { const chatId = newRecord.chat_id; if (activeChatIdRef.current === chatId) { try { const contentStr = await decryptMessage(newRecord.iv, newRecord.content, chatId); setMessages(prev => prev.map(m => m.id === newRecord.id ? { ...m, content: contentStr } : m)); } catch(e) {} } }
        if (eventType === 'DELETE') { if (activeChatIdRef.current) { setMessages(prev => prev.filter(m => m.id !== oldRecord.id)); } }
     };
-    // ... rest of event handlers
+    
     const handleChatEvent = async (payload: any) => {
        const eventType = payload.eventType;
        const newRecord = payload.new;
@@ -843,7 +976,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
         }
     };
     
-    // FORUMS REALTIME
     const handleForumEvent = (payload: any) => {
         if (payload.table === 'forum_threads') {
             const thread = payload.new;
@@ -854,7 +986,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                 }
             }
             if (payload.eventType === 'UPDATE') {
-                 // Update views or timestamps
                  setAllForumThreads(prev => prev.map(t => t.id === thread.id ? thread : t).sort((a,b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
                  if (activeCategoryRef.current === thread.category_id) {
                      setForumThreads(prev => {
@@ -871,7 +1002,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
             const post = payload.new;
             if (payload.eventType === 'INSERT' && activeThreadRef.current === post.thread_id) {
                 setForumPosts(prev => [...prev, post]);
-                // Fetch profile if needed
                 if (!profilesCache[post.author]) {
                     getProfiles([post.author]).then(p => setProfilesCache(prev => ({...prev, ...p})));
                 }
@@ -889,18 +1019,30 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
     e?.preventDefault();
     const textToSend = overrideText || inputText;
 
-    // CHAT MESSAGE LOGIC
     if ((!textToSend.trim() && attachments.length === 0) || !activeChat) return;
     if (activeChat.id === OFFICIAL_CHAT_ID && user.username !== 'night') return;
 
-    const payload: MessageContent = { text: textToSend, attachments: attachments.length > 0 ? attachments : undefined };
+    const payload: MessageContent = { 
+        text: textToSend, 
+        attachments: attachments.length > 0 ? attachments : undefined,
+        replyTo: replyingTo ? {
+            id: replyingTo.id,
+            sender: replyingTo.sender,
+            text: (() => {
+                try {
+                    const c = JSON.parse(replyingTo.content);
+                    return c.text || 'Attachment';
+                } catch { return replyingTo.content; }
+            })()
+        } : undefined
+    };
+    
     const contentString = JSON.stringify(payload);
     const tempId = crypto.randomUUID(); 
     const timestamp = Date.now();
     const isoTimestamp = new Date(timestamp).toISOString();
     const optimisticMsg: ChatMessage = { id: tempId, sender: user.username, content: contentString, timestamp };
     
-    // Update State & Cache Optimistically
     setMessages(prev => [...prev, optimisticMsg]);
     setMessagesCache(prev => ({
         ...prev,
@@ -908,13 +1050,53 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
     }));
 
     setMyChats(prev => { const updated = prev.map(c => c.id === activeChat.id ? { ...c, lastMessage: optimisticMsg } : c); return updated.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0)); });
-    if (!overrideText) { setInputText(''); setAttachments([]); if (textAreaRef.current) textAreaRef.current.style.height = 'auto'; }
+    
+    if (!overrideText) { 
+        setInputText(''); 
+        setAttachments([]); 
+        setReplyingTo(null); // Clear reply
+        if (textAreaRef.current) textAreaRef.current.style.height = 'auto'; 
+    }
+
     try {
       const encrypted = await prepareMessagePayload(activeChat.id, contentString);
       if (activeChannelRef.current) { await activeChannelRef.current.send({ type: 'broadcast', event: 'message', payload: { id: tempId, sender: user.username, content: encrypted.data, iv: encrypted.iv, chat_id: activeChat.id, created_at: isoTimestamp } }); }
       await saveMessageToDB(activeChat.id, user.username, encrypted, tempId);
       markChatRead(activeChat.id, user.username, timestamp);
     } catch (err) { console.error("Failed to send", err); addToast("Failed to save message to history", "alert"); }
+  };
+  
+  const handleForwardMessages = async (targetChatIds: string[]) => {
+      if (!forwardingMessage) return;
+      setForwardingMessage(null); // Close modal
+      
+      let originalContent: MessageContent = { text: forwardingMessage.content };
+      try { originalContent = JSON.parse(forwardingMessage.content); } catch {}
+      
+      const newPayload: MessageContent = {
+          ...originalContent,
+          isForwarded: true,
+          replyTo: undefined, // Don't preserve reply context when forwarding
+          reactions: undefined // Don't preserve reactions
+      };
+      
+      const contentStr = JSON.stringify(newPayload);
+      
+      for (const chatId of targetChatIds) {
+          try {
+             const tempId = crypto.randomUUID();
+             const encrypted = await prepareMessagePayload(chatId, contentStr);
+             await saveMessageToDB(chatId, user.username, encrypted, tempId);
+             
+             // If sending to active chat, show immediately
+             if (activeChat?.id === chatId) {
+                 const optimisticMsg: ChatMessage = { id: tempId, sender: user.username, content: contentStr, timestamp: Date.now() };
+                 setMessages(prev => [...prev, optimisticMsg]);
+             }
+          } catch(e) { console.error(`Failed to forward to ${chatId}`, e); }
+      }
+      
+      addToast(`Forwarded to ${targetChatIds.length} chats`, 'success');
   };
 
   const handleForumSendMessage = async (e?: React.FormEvent, overrideText?: string) => {
@@ -925,7 +1107,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
      const contentObj: MessageContent = { text: textToSend, attachments: forumAttachments.length > 0 ? forumAttachments : undefined };
      const contentStr = JSON.stringify(contentObj);
      
-     // Optimistic Update
      const optimisticPost: ForumPost = {
          id: crypto.randomUUID(),
          thread_id: activeThread.id,
@@ -935,7 +1116,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
      };
      setForumPosts(prev => [...prev, optimisticPost]);
      
-     // Clear Input
      if (!overrideText) { setForumInputText(''); setForumAttachments([]); if (forumTextAreaRef.current) forumTextAreaRef.current.style.height = 'auto'; }
 
      try {
@@ -957,14 +1137,11 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
               newThreadAttachments
           );
           
-          // Add first post logic (message bubble style) happens automatically via data fetch
-          // But we need to insert the first post so it looks like a message
           const contentObj: MessageContent = { text: newThreadContent, attachments: newThreadAttachments.length ? newThreadAttachments : undefined };
           await createForumPost(thread.id, user.username, JSON.stringify(contentObj));
           
           setForumThreads(prev => [thread, ...prev]);
           setShowCreateThread(false);
-          // Reset Form
           setNewThreadTitle('');
           setNewThreadContent('');
           setNewThreadTags([]);
@@ -974,8 +1151,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
           setActiveThread(thread);
       } catch(e) { console.error(e); addToast('Failed to create thread', 'alert'); }
   };
-
-  // ... (Remainder of handlers: handleAddTag, handleFileSelect, etc. - Unchanged)
 
   const handleAddTag = (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && tagInput.trim()) {
@@ -1069,7 +1244,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const handleAddMembers = async (newMembers: string[]) => { if (!activeChat) return; await addGroupMembers(activeChat.id, newMembers); const updatedParticipants = [...activeChat.participants, ...newMembers]; const updatedChat = { ...activeChat, participants: updatedParticipants }; setActiveChat(updatedChat); setMyChats(prev => prev.map(c => c.id === activeChat.id ? updatedChat : c)); addToast("Members added", "success"); getProfiles(newMembers).then(p => { setProfilesCache(prev => ({...prev, ...p})); }); };
   const handleOnboardingComplete = () => { setShowOnboarding(false); localStorage.setItem(`night_onboarding_completed_${user.username}`, 'true'); };
 
-  // FILTER LOGIC & RENDER ... (Same as before)
   const displayedChats = myChats.filter(c => !closedChatIds.has(c.id)).filter(c => {
       if (filterMode === 'unread' && (unreadCounts[c.id] || 0) === 0) return false;
       if (filterMode === 'groups' && c.type !== 'group') return false;
@@ -1085,7 +1259,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
   const totalUnreadLabel = totalUnread > 99 ? '99+' : totalUnread.toString();
   useEffect(() => { document.title = totalUnread > 0 ? `Night | (${totalUnreadLabel})` : 'Night | Secure Chat'; }, [totalUnread, totalUnreadLabel]);
 
-  // CATEGORY ICON RENDERER
   const renderCategoryIcon = (iconName: string, className = "w-5 h-5") => {
       switch(iconName) {
           case 'Globe': return <Globe className={className} />;
@@ -1108,11 +1281,11 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
          {toasts.map(t => (<div key={t.id} className={`pointer-events-auto border px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-slide-in-right ${t.type === 'alert' ? 'bg-red-950/90 border-red-900 text-red-200' : 'bg-zinc-900 border-zinc-800 text-white'}`}>{t.type === 'success' ? <Check className="w-4 h-4 text-green-400" /> : (t.type === 'alert' ? <AlertTriangle className="w-4 h-4 text-red-400" /> : <Info className="w-4 h-4 text-blue-400" />)}<span className="text-sm font-medium">{t.message}</span></div>))}
       </div>
       {showOnboarding && (<OnboardingModal onSkip={handleOnboardingComplete} onCreateOwn={() => { setShowCreateGroup(true); handleOnboardingComplete(); }} onTemplate={handleCreateFromTemplate} />)}
+      {forwardingMessage && <ForwardModal onClose={() => setForwardingMessage(null)} onSend={handleForwardMessages} chats={myChats} profilesCache={profilesCache} currentUser={user} />}
       {miniProfileUser && <MiniProfile key={miniProfileUser} username={miniProfileUser} initialData={profilesCache[miniProfileUser]} onClose={() => setMiniProfileUser(null)} onMessage={handleMessageUser} status={onlineUsers[miniProfileUser] || 'offline'} />}
 
       {/* --- SIDEBAR --- */}
       <aside className={`flex flex-col w-full md:w-[400px] bg-black border-r border-zinc-900 h-full ${(activeChat || activeThread) ? 'hidden md:flex' : 'flex'}`}>
-        {/* Header */}
         <div className="h-16 bg-zinc-950 flex items-center justify-between px-4 border-b border-zinc-900 shrink-0 pt-[env(safe-area-inset-top)] box-content">
              <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowStatusMenu(!showStatusMenu)}>
                  <div className="relative w-9 h-9">
@@ -1266,7 +1439,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
          <div className="absolute inset-0 bg-black opacity-95 z-0 pointer-events-none"></div>
 
          {viewMode === 'chats' && activeChat ? (
-             // ... [Rest of Chat UI] ... (Unchanged, just wrapped)
              <>
                 <header className="h-16 bg-zinc-950 flex items-center justify-between px-4 border-b border-zinc-900 z-10 shrink-0 pt-[env(safe-area-inset-top)] box-content">
                     <div className="flex items-center gap-3">
@@ -1333,6 +1505,8 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                                         onDelete={() => deleteMessage(m.id).then(()=>setMessages(p=>p.filter(x=>x.id!==m.id)))} 
                                         onEdit={(id, txt) => updateMessage(activeChat.id, id, { text: txt }).then(()=>setMessages(p=>p.map(x=>x.id===id ? {...x, content: JSON.stringify({...JSON.parse(x.content), text: txt})} : x)))}
                                         onProfileClick={setMiniProfileUser}
+                                        onReply={(msg) => setReplyingTo(msg)}
+                                        onForward={(msg) => setForwardingMessage(msg)}
                                         isSequence={!!isSequence}
                                         isLastInSequence={isLastInSequence}
                                     />
@@ -1345,6 +1519,24 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
 
                 {activeChat.id !== OFFICIAL_CHAT_ID || user.username === 'night' ? (
                 <div className="p-3 bg-zinc-950 border-t border-zinc-900 z-20 pb-[max(1rem,env(safe-area-inset-bottom))] box-content shrink-0 mb-4">
+                   {/* Reply Preview */}
+                   {replyingTo && (
+                        <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-t border-x border-zinc-800 rounded-t-xl mx-2 -mb-2 z-0 relative top-1">
+                            <div className="flex flex-col relative pl-3 border-l-2 border-indigo-500">
+                                <span className="text-[10px] font-bold text-indigo-400">Replying to {replyingTo.sender}</span>
+                                <span className="text-xs text-zinc-500 truncate max-w-[200px]">
+                                    {(() => {
+                                        try {
+                                            const c = JSON.parse(replyingTo.content);
+                                            return c.text || (c.attachments?.length ? 'Attachment' : 'Message');
+                                        } catch { return replyingTo.content; }
+                                    })()}
+                                </span>
+                            </div>
+                            <button onClick={() => setReplyingTo(null)} className="p-1 hover:text-white text-zinc-500"><X className="w-4 h-4" /></button>
+                        </div>
+                   )}
+
                    <div className="relative flex items-end gap-2 max-w-4xl mx-auto">
                         {attachments.length > 0 && (
                             <div className="absolute bottom-full left-0 mb-2 bg-zinc-900 p-2 rounded-lg border border-zinc-800 flex gap-2 shadow-xl z-50">
@@ -1366,7 +1558,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                             </div>
                         )}
 
-                        <div className="flex-1 bg-zinc-900 rounded-lg flex items-center border border-zinc-800 focus-within:border-zinc-700 transition-colors">
+                        <div className={`flex-1 bg-zinc-900 flex items-center border border-zinc-800 focus-within:border-zinc-700 transition-colors ${replyingTo ? 'rounded-b-lg rounded-tr-lg' : 'rounded-lg'}`}>
                              <textarea 
                                 ref={textAreaRef}
                                 value={inputText}
@@ -1391,7 +1583,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                 ) : <div className="p-4 bg-zinc-950 border-t border-zinc-900 text-center text-zinc-600 text-sm flex items-center justify-center gap-2"><Lock className="w-4 h-4" />Read Only Channel</div>}
              </>
          ) : viewMode === 'forums' && activeThread ? (
-             // ... [Rest of Forum Thread UI] ... (Unchanged)
              <>
                  <header className="h-16 bg-zinc-950/80 backdrop-blur-md flex items-center gap-3 px-4 border-b border-zinc-900 z-10 shrink-0 pt-[env(safe-area-inset-top)] box-content sticky top-0">
                      <button onClick={() => setActiveThread(null)} className="text-zinc-400 p-1 hover:text-white"><ArrowLeft className="w-6 h-6"/></button>
@@ -1482,6 +1673,8 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                                             onDelete={() => {}} 
                                             onEdit={() => {}}
                                             onProfileClick={setMiniProfileUser}
+                                            onReply={() => {}}
+                                            onForward={() => {}}
                                             isSequence={!!isSequence}
                                             isLastInSequence={isLastInSequence}
                                         />
@@ -1540,7 +1733,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                 </div>
              </>
          ) : viewMode === 'forums' && activeCategory ? (
-             // ... [Rest of Forum List UI] ... (Unchanged)
              <>
                  <header className="h-16 bg-zinc-950 flex items-center justify-between px-6 border-b border-zinc-900 z-10 shrink-0 pt-[env(safe-area-inset-top)] box-content">
                      <div className="flex items-center gap-3">
@@ -1591,7 +1783,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                  </div>
              </>
          ) : viewMode === 'forums' && !activeCategory ? (
-            // ... [Rest of Forum Dashboard] ... (Unchanged)
             <div className="flex-1 flex flex-col p-6 overflow-y-auto custom-scrollbar relative">
                 {/* Snowfall Overlay */}
                 <Snowfall />
@@ -1657,7 +1848,6 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                                 </div>
                                 <h3 className="font-bold text-zinc-300 group-hover:text-white flex items-center gap-2">
                                     {cat.name}
-                                    {/* Append Festive Emojis Logic */}
                                     <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs">
                                         {cat.name.includes('Game') ? '🎮' : 
                                          cat.name.includes('Music') ? '🎵' : 

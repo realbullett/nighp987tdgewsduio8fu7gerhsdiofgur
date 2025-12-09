@@ -1,4 +1,5 @@
 
+
 export interface User {
   username: string;
   isAuthenticated: boolean;
@@ -29,10 +30,18 @@ export interface Attachment {
   mimeType?: string;
 }
 
+export interface ReplyContext {
+  id: string;
+  sender: string;
+  text: string;
+}
+
 export interface MessageContent {
   text: string;
   attachments?: Attachment[];
   reactions?: Record<string, string[]>; // emoji -> list of usernames
+  replyTo?: ReplyContext;
+  isForwarded?: boolean;
 }
 
 export interface Message {
