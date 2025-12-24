@@ -1394,7 +1394,7 @@ const Dashboard: React.FC<ChatProps> = ({ user, onLogout }) => {
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <p className={`text-xs truncate max-w-[200px] ${unread > 0 ? 'text-zinc-100 font-medium' : 'text-zinc-500'}`}>
-                                            {isOff ? "Welcome to Night" : (lastMsgText || <span className="italic opacity-50">No messages yet</span>)}
+                                            {isOff ? "Welcome to Glycon" : (lastMsgText || <span className="italic opacity-50">No messages yet</span>)}
                                         </p>
                                         {unread > 0 && <div className="bg-indigo-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">{unread > 99 ? '99+' : unread}</div>}
                                     </div>
