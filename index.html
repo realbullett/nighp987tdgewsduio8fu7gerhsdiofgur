@@ -1,163 +1,137 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>Glycon | #1 External</title>
+    <title>Glycon | #1 External Aimbot</title>
     <link rel="icon" type="image/png" href="fav.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      :root {
-        --vh: 1vh;
-      }
-      
-      html, body {
-        height: 100%;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        background-color: #000000;
-        color: #e4e4e7; /* Zinc 200 */
-        overflow: hidden; /* Lock body scroll */
-        position: fixed; /* Critical for Android keyboard stability */
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        overscroll-behavior-y: none;
-        -webkit-tap-highlight-color: transparent;
-      }
-      
-      #root {
-        height: 100%;
-        height: calc(var(--vh, 1vh) * 100);
-        width: 100%;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      }
-
-      body {
-        font-family: 'Inter', sans-serif;
-        -webkit-font-smoothing: antialiased;
-      }
-      
-      /* Noir Scrollbars - Minimalist */
-      ::-webkit-scrollbar {
-        width: 4px;
-        height: 4px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #27272a; /* Zinc 800 */
-        border-radius: 2px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #3f3f46; /* Zinc 700 */
-      }
-      
-      /* Animation Keyframes */
-      @keyframes fade-in-up {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      
-      @keyframes fade-in {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-
-      @keyframes slide-in-right {
-        from { transform: translateX(100%); }
-        to { transform: translateX(0); }
-      }
-
-      @keyframes slide-in-left {
-        from { transform: translateX(-100%); }
-        to { transform: translateX(0); }
-      }
-
-      @keyframes scale-in {
-        from { opacity: 0; transform: scale(0.95); }
-        to { opacity: 1; transform: scale(1); }
-      }
-
-      @keyframes pulse-glow {
-        0%, 100% { opacity: 0.4; }
-        50% { opacity: 0.8; }
-      }
-      
-      /* Festive Animations */
-      @keyframes sway {
-        0% { transform: rotate(-5deg); }
-        50% { transform: rotate(5deg); }
-        100% { transform: rotate(-5deg); }
-      }
-
-      /* Utilities */
-      .animate-fade-in-up { animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-      .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
-      .animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-      .animate-scale-in { animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-      .animate-sway { animation: sway 3s ease-in-out infinite; transform-origin: bottom center; }
-      
-      .glass-panel {
-        background: rgba(9, 9, 11, 0.6); /* Zinc 950 with opacity */
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-
-      /* Autofill Fix for Dark Mode */
-      input:-webkit-autofill,
-      input:-webkit-autofill:hover, 
-      input:-webkit-autofill:focus, 
-      input:-webkit-autofill:active{
-          -webkit-box-shadow: 0 0 0 30px #09090b inset !important;
-          -webkit-text-fill-color: white !important;
-          transition: background-color 5000s ease-in-out 0s;
-      }
-
-      /* Mobile Inputs: Prevent Zoom on Focus */
-      @media screen and (max-width: 768px) {
-        input, textarea, select {
-          font-size: 16px !important; 
+        :root {
+            --vh: 1vh;
+            /* Google Search Colors */
+            --g-blue: #8ab4f8;
+            --g-gray: #bdc1c6;
+            --g-sub: #9aa0a6;
         }
-      }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #000000;
+            color: #e4e4e7; /* Zinc 200 */
+            overflow: hidden; /* Lock body scroll */
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overscroll-behavior-y: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #root {
+            height: 100%;
+            height: calc(var(--vh, 1vh) * 100);
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Noir Scrollbars - Minimalist */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+        /* Original Animations */
+        @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slide-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slide-in-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse-glow { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+        @keyframes sway { 0% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } 100% { transform: rotate(-5deg); } }
+
+        .animate-fade-in-up { animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        .animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-scale-in { animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-sway { animation: sway 3s ease-in-out infinite; transform-origin: bottom center; }
+
+        .glass-panel {
+            background: rgba(9, 9, 11, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        input:-webkit-autofill {
+            -webkit-box-shadow: 0 0 0 30px #09090b inset !important;
+            -webkit-text-fill-color: white !important;
+        }
+
+        @media screen and (max-width: 768px) {
+            input, textarea, select { font-size: 16px !important; }
+        }
     </style>
     <script>
-      // Viewport Height Fix for Mobile Browsers (Android/iOS)
-      function setVh() {
-        let vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-      }
-      setVh();
-      window.addEventListener('resize', setVh);
-      window.addEventListener('orientationchange', () => {
-         setTimeout(setVh, 100);
-      });
+        function setVh() {
+            let vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+        setVh();
+        window.addEventListener('resize', setVh);
+        window.addEventListener('orientationchange', () => { setTimeout(setVh, 100); });
     </script>
     <script type="importmap">
     {
-  "imports": {
-    "@google/genai": "https://cdn.jsdelivr.net/npm/@google/genai@1.30.0/dist/index.js",
-    "react/": "https://cdn.jsdelivr.net/npm/react@19.2.0/umd/",
-    "react": "https://cdn.jsdelivr.net/npm/react@19.2.0/umd/react.production.min.js",
-    "react-dom/": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/umd/",
-    "lucide-react": "https://cdn.jsdelivr.net/npm/lucide-react@0.555.0/dist/index.js",
-    "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/supabase.js"
-  }
-}
-
+        "imports": {
+            "@google/genai": "https://cdn.jsdelivr.net/npm/@google/genai@1.30.0/dist/index.js",
+            "react": "https://cdn.jsdelivr.net/npm/react@19.2.0/umd/react.production.min.js",
+            "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.0/umd/react-dom.production.min.js",
+            "lucide-react": "https://cdn.jsdelivr.net/npm/lucide-react@0.555.0/dist/index.js",
+            "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/supabase.js"
+        }
+    }
     </script>
-  <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
-    <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+<body>
+    <div id="root">
+        <div class="max-w-2xl p-6 mt-10 ml-4 animate-fade-in-up">
+            <div class="flex items-center gap-3 mb-1">
+                <div class="flex items-center justify-center w-7 h-7 rounded-full bg-[#303134] overflow-hidden">
+                    <img src="fav.png" alt="icon" class="w-4 h-4" />
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-sm text-[#e8eaed] leading-tight">Glycon</span>
+                    <span class="text-xs text-[var(--g-sub)] leading-tight">https://glycon.external.it</span>
+                </div>
+                <button class="ml-1 text-[var(--g-sub)]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+            </div>
+
+            <a href="#" class="block group">
+                <h3 class="text-[20px] text-[var(--g-blue)] group-hover:underline font-normal mb-1">
+                    Glycon - Download #1 External Aimbot
+                </h3>
+            </a>
+
+            <p class="text-[14px] text-[var(--g-gray)] leading-relaxed">
+                Download <span class="font-bold text-[#e8eaed]">Glycon</span> A powerful <span class="font-bold text-[#e8eaed]">external aimbot</span> for high-performance and precision. Works seamlessly with modern titles without injecting code.
+            </p>
+        </div>
+    </div>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
