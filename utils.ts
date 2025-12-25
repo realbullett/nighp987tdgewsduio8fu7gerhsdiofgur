@@ -15,8 +15,8 @@ const getEnv = (key: string, fallback: string) => {
   return fallback;
 };
 
-const SUPABASE_URL = getEnv('SUPABASE_URL', 'https://sadylwdqwawqstvlrbex.supabase.co');
-const SUPABASE_KEY = getEnv('SUPABASE_KEY', 'sb_publishable_LPj1KJOvVsJ-ZXAsbqE14A_o9CMmtGF');
+const SUPABASE_URL = getEnv('SUPABASE_URL', 'https://kyzdomydchzqhmzdsutw.supabase.co');
+const SUPABASE_KEY = getEnv('SUPABASE_KEY', 'sb_publishable_pzYLsIBuQXil4qncVVv_0A_nvhLC5K3');
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     realtime: {
