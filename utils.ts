@@ -530,8 +530,8 @@ export const getWelcomeChat = async (): Promise<ChatRoom> => {
     await supabase.from('chats').insert({
       id: WELCOME_CHAT_ID,
       type: 'group',
-      name: 'Official Night',
-      description: 'The official gathering place for all night dwellers.',
+      name: 'Official Glycon',
+      description: '#1 Roblox External Experience',
       participants: ['night'], 
       admins: ['night']
     });
@@ -540,8 +540,8 @@ export const getWelcomeChat = async (): Promise<ChatRoom> => {
   return {
     id: WELCOME_CHAT_ID,
     type: 'group',
-    name: 'Official Night',
-    description: data?.description || 'The official gathering place for all night dwellers.',
+    name: 'Official Glycon',
+    description: data?.description || '#1 Roblox External Experience',
     participants: allUsernames, 
     admins: ['night'],
     avatar: ''
@@ -576,7 +576,7 @@ export const getMyChats = async (username: string): Promise<ChatRoom[]> => {
     if (welcome) {
         const { data: allProfiles } = await supabase.from('profiles').select('username');
         welcome.participants = allProfiles ? allProfiles.map((p: any) => p.username) : ['night'];
-        welcome.name = 'Official Night'; 
+        welcome.name = 'Official Glycon'; 
     }
   }
 

@@ -12,7 +12,7 @@ interface AuthProps {
 type AuthStep = 'LOGIN' | 'REGISTER' | 'SETUP_AVATAR';
 
 // --- Optimized Starfield (Noir Edition) ---
-export const Starfield = () => {
+const Starfield = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export const Starfield = () => {
 };
 
 // --- Floating Astronauts Component ---
-export const FloatingAstronauts = () => {
+const FloatingAstronauts = () => {
   return (
     <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
       <style>{`
