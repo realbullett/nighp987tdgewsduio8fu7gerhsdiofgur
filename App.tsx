@@ -4,7 +4,7 @@ import { User } from './types';
 import Auth from './components/Auth';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Chat';
-import { supabase, restoreSession, logoutUser, warmupChatCache } from './utils';
+import { supabase, restoreSession, logoutUser } from './utils';
 import { Loader2, ShieldCheck, Database, Lock } from 'lucide-react';
 
 const App: React.FC = () => {
