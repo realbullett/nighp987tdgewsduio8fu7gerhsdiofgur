@@ -3,160 +3,69 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>Night | Secure Chat</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M28.0001 4C28.0001 4 52.0001 16 52.0001 40C52.0001 56 36.0001 60 28.0001 60C38.0001 60 48.0001 52 48.0001 32C48.0001 12 38.0001 4 28.0001 4Z' fill='%23F97316'/%3E%3Ccircle cx='40' cy='28' r='3' fill='white'/%3E%3Cpath d='M36 40C36 40 40 44 44 40' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Glycon | #1 Roblox External</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-      :root {
-        --vh: 1vh;
-      }
-      
-      html, body {
-        height: 100%;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        background-color: #000000;
-        color: #e4e4e7; /* Zinc 200 */
-        overflow: hidden; /* Lock body scroll */
-        position: fixed; /* Critical for Android keyboard stability */
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        overscroll-behavior-y: none;
-        -webkit-tap-highlight-color: transparent;
-      }
-      
-      #root {
-        height: 100%;
-        height: calc(var(--vh, 1vh) * 100);
-        width: 100%;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      }
-
       body {
         font-family: 'Inter', sans-serif;
-        -webkit-font-smoothing: antialiased;
+        background-color: #000;
+        color: #e4e4e7;
+        margin: 0;
+        overflow-x: hidden;
+        overflow-y: auto; /* Enable scrolling */
       }
       
-      /* Noir Scrollbars - Minimalist */
       ::-webkit-scrollbar {
         width: 4px;
-        height: 4px;
       }
       ::-webkit-scrollbar-track {
-        background: transparent; 
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #27272a; /* Zinc 800 */
-        border-radius: 2px;
+        background: #312e81;
+        border-radius: 10px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #3f3f46; /* Zinc 700 */
+        background: #4338ca;
       }
-      
-      /* Animation Keyframes */
+
       @keyframes fade-in-up {
-        from { opacity: 0; transform: translateY(10px); }
+        from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
       }
-      
-      @keyframes fade-in {
-        from { opacity: 0; }
-        to { opacity: 1; }
+
+      .animate-fade-in-up {
+        animation: fade-in-up 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
       }
 
-      @keyframes slide-in-right {
-        from { transform: translateX(100%); }
-        to { transform: translateX(0); }
-      }
-
-      @keyframes slide-in-left {
-        from { transform: translateX(-100%); }
-        to { transform: translateX(0); }
-      }
-
-      @keyframes scale-in {
-        from { opacity: 0; transform: scale(0.95); }
-        to { opacity: 1; transform: scale(1); }
-      }
-
-      @keyframes pulse-glow {
-        0%, 100% { opacity: 0.4; }
-        50% { opacity: 0.8; }
-      }
-      
-      /* Festive Animations */
-      @keyframes sway {
-        0% { transform: rotate(-5deg); }
-        50% { transform: rotate(5deg); }
-        100% { transform: rotate(-5deg); }
-      }
-
-      /* Utilities */
-      .animate-fade-in-up { animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-      .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
-      .animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-      .animate-scale-in { animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-      .animate-sway { animation: sway 3s ease-in-out infinite; transform-origin: bottom center; }
-      
-      .glass-panel {
-        background: rgba(9, 9, 11, 0.6); /* Zinc 950 with opacity */
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-
-      /* Autofill Fix for Dark Mode */
-      input:-webkit-autofill,
-      input:-webkit-autofill:hover, 
-      input:-webkit-autofill:focus, 
-      input:-webkit-autofill:active{
-          -webkit-box-shadow: 0 0 0 30px #09090b inset !important;
-          -webkit-text-fill-color: white !important;
-          transition: background-color 5000s ease-in-out 0s;
-      }
-
-      /* Mobile Inputs: Prevent Zoom on Focus */
-      @media screen and (max-width: 768px) {
-        input, textarea, select {
-          font-size: 16px !important; 
-        }
+      .mask-image-gradient-b {
+        mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
       }
     </style>
-    <script>
-      // Viewport Height Fix for Mobile Browsers (Android/iOS)
-      function setVh() {
-        let vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-      }
-      setVh();
-      window.addEventListener('resize', setVh);
-      window.addEventListener('orientationchange', () => {
-         setTimeout(setVh, 100);
-      });
-    </script>
     <script type="importmap">
-    {
-      "imports": {
-        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-        "react/": "https://aistudiocdn.com/react@^19.2.0/",
-        "react": "https://aistudiocdn.com/react@^19.2.0",
-        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-        "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-        "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@2.39.0"
-      }
-    }
-    </script>
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.30.0",
+    "react": "https://esm.sh/react@^19.0.0",
+    "react-dom": "https://esm.sh/react-dom@^19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@^19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@^0.471.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.48.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "path": "https://esm.sh/path@^0.12.7",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "url": "https://esm.sh/url@^0.11.4"
+  }
+}
+</script>
   <link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>

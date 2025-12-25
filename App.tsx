@@ -1,4 +1,4 @@
-
+  
 import React, { useState, useEffect } from 'react';
 import { User } from './types';
 import Auth from './components/Auth';
