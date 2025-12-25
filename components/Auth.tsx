@@ -80,7 +80,7 @@ export const Starfield = () => {
 };
 
 // --- Floating Astronauts Component ---
-const FloatingAstronauts = () => {
+export const FloatingAstronauts = () => {
   return (
     <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
       <style>{`
