@@ -12,7 +12,7 @@ interface AuthProps {
 type AuthStep = 'LOGIN' | 'REGISTER' | 'SETUP_AVATAR';
 
 // --- Optimized Starfield (Noir Edition) ---
-export const Starfield = () => {
+const Starfield = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export const Starfield = () => {
 };
 
 // --- Floating Astronauts Component ---
-export const FloatingAstronauts = () => {
+const FloatingAstronauts = () => {
   return (
     <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
       <style>{`
@@ -373,7 +373,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     </div>
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                     <button type="submit" disabled={loading || !avatar} className="w-full h-12 bg-white hover:bg-zinc-200 text-black font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Enter Glycon <ArrowRight className="w-4 h-4" /></>}
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Enter Night <ArrowRight className="w-4 h-4" /></>}
                     </button>
                 </form>
             </div>
@@ -399,18 +399,18 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     <div className="flex-1 p-6 sm:p-8 flex flex-col items-center justify-center overflow-y-auto custom-scrollbar">
                         <div className="flex flex-col items-center mb-4 mt-2 shrink-0">
                             <WavingCreature />
-                            <h1 className="text-3xl font-bold text-white tracking-tight">Glycon</h1>
-                            <p className="text-zinc-500 text-[10px] mt-2 font-bold tracking-[0.3em] uppercase">Secure</p>
+                            <h1 className="text-3xl font-bold text-white tracking-tight">Night</h1>
+                            <p className="text-zinc-500 text-[10px] mt-2 font-bold tracking-[0.3em] uppercase">Secure Access</p>
                         </div>
                         {error && <div className="w-full mb-4 p-2 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded flex items-center gap-2 shrink-0"><AlertTriangle className="w-3 h-3"/>{error}</div>}
                         
                         <div className="w-full mb-6 text-center px-2 shrink-0">
-                            <p className="text-xs text-zinc-400 italic leading-relaxed">Your choice of cheating<br/>Experience a non pasted, flawless & original experience</p>
+                            <p className="text-xs text-zinc-400 italic leading-relaxed">"Privacy and cozy texting.<br/>In the silence of the void, your words are yours alone."</p>
                         </div>
 
                         <form onSubmit={handleAuthSubmit} className="w-full space-y-5">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">username</label>
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Identity</label>
                                 <input type="text" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="username" />
                             </div>
                             <div className="space-y-1">
@@ -435,18 +435,18 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     <div className="flex-1 p-6 sm:p-8 flex flex-col items-center justify-center overflow-y-auto custom-scrollbar">
                         <div className="flex flex-col items-center mb-4 mt-2 shrink-0">
                             <WavingCreature />
-                            <h1 className="text-2xl font-bold text-white tracking-tight">New Account</h1>
+                            <h1 className="text-2xl font-bold text-white tracking-tight">New Signal</h1>
                             <p className="text-zinc-500 text-[10px] mt-1 font-bold tracking-[0.3em] uppercase">Join Network</p>
                         </div>
                         {error && <div className="w-full mb-4 p-2 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded flex items-center gap-2 shrink-0"><AlertTriangle className="w-3 h-3"/>{error}</div>}
 
                         <div className="w-full mb-4 text-center px-2 shrink-0">
-                            <p className="text-xs text-zinc-400 italic leading-relaxed">"Forge a new identity. No trackers, just starlight.<br/>Privacy and cozy texting for the Glycon."</p>
+                            <p className="text-xs text-zinc-400 italic leading-relaxed">"Forge a new identity. No trackers, just starlight.<br/>Privacy and cozy texting for the night."</p>
                         </div>
 
                         <form onSubmit={handleAuthSubmit} className="w-full space-y-3">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Username</label>
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase ml-1">Identity</label>
                                 <input type="text" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-white text-sm outline-none focus:border-white transition-all" placeholder="username" />
                             </div>
                             <div className="space-y-1">
@@ -484,7 +484,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                             {geminiTip && <div className="bg-purple-900/20 border border-purple-500/30 p-2 rounded text-[10px] text-purple-200 animate-fade-in">{geminiTip}</div>}
 
                             <button type="submit" disabled={loading} className="w-full h-12 mt-4 bg-white hover:bg-zinc-200 text-black font-bold rounded-xl flex items-center justify-center gap-2 shrink-0 shadow-lg">
-                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign Up'}
+                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Initialize'}
                             </button>
                         </form>
                     </div>
@@ -496,7 +496,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
          {/* Footer Separated from Glass Panel */}
          <div className="text-center shrink-0 h-10 pb-[env(safe-area-inset-bottom)]">
             <button type="button" onClick={toggleAuthMode} className="text-zinc-500 hover:text-white text-xs font-semibold tracking-wide py-2 px-4 hover:bg-zinc-900/50 rounded-full transition-colors">
-                {step === 'LOGIN' ? 'Create new account' : 'Return to login'}
+                {step === 'LOGIN' ? 'Create new identity' : 'Return to login'}
             </button>
          </div>
 
