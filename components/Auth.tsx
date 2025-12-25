@@ -12,7 +12,7 @@ interface AuthProps {
 type AuthStep = 'LOGIN' | 'REGISTER' | 'SETUP_AVATAR';
 
 // --- Optimized Starfield (Noir Edition) ---
-const Starfield = () => {
+export const Starfield = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
