@@ -10,14 +10,15 @@
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
+    "@supabase/supabase-js": "^2.48.1",
+    "@vercel/analytics": "^1.6.1",
+    "@vitejs/plugin-react": "^5.1.2",
+    "lucide-react": "^0.471.0",
+    "path": "^0.12.7",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "lucide-react": "^0.471.0",
-    "@supabase/supabase-js": "^2.48.1",
-    "path": "^0.12.7",
-    "vite": "^7.3.0",
-    "@vitejs/plugin-react": "^5.1.2",
-    "url": "^0.11.4"
+    "url": "^0.11.4",
+    "vite": "^7.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
