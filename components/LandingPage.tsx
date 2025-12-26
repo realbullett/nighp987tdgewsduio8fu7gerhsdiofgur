@@ -262,7 +262,7 @@ const LandingPage: React.FC<{ user: SupabaseUser | null, onLogout: () => void }>
                           GET<br/><span className="text-purple-600">GLYCON</span>
                         </h2>
                         <p className="text-slate-500 text-lg font-medium max-w-md mx-auto lg:mx-0">
-                          Register a new account in order to download Glycon & stay connected, or login to your account
+                          Register a new account in order to download Glycon & stay connected, or login to your account. Want an access key? Head here, https://discord.gg/vC8fnP6vre
                         </p>
                     </div>
                     <div className="lg:w-1/2 w-full">
