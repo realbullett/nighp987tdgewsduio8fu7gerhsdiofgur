@@ -215,7 +215,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           </button>
           <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest group">
             <Activity size={14} className="group-hover:text-purple-400" />
-            <span>Telemetry</span>
+            <span>Versions</span>
           </button>
           <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest group">
             <Bug size={14} className="group-hover:text-purple-400" />
@@ -358,14 +358,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <div>
                   <div className="flex items-center space-x-3 text-purple-500 mb-4">
                     <Terminal size={18} className="animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em]">Operational // Command Center</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em]">Welcome to Dashboard</span>
                   </div>
                   <h1 className="text-6xl font-black italic tracking-tighter text-white uppercase leading-[0.8]">
-                    SYSTEM_DEPLOY<br/><span className="text-purple-600">OVERVIEW.</span>
+                    GLYCON<br/><span className="text-purple-600">DASHBOARD</span>
                   </h1>
                 </div>
                 <div className="text-right hidden md:block">
-                  <div className="text-[10px] font-black uppercase text-slate-600 tracking-widest mb-2">Environment Status</div>
+                  <div className="text-[10px] font-black uppercase text-slate-600 tracking-widest mb-2">Status</div>
                   <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
                     <span className="text-xs font-bold text-white uppercase italic tracking-widest">Live: v{release?.version || '0.0.0'}</span>
@@ -495,14 +495,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 </div>
                 <div className="flex items-center space-x-3 group cursor-help">
                   <div className="w-2 h-2 rounded-full bg-purple-500 group-hover:shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-all"></div>
-                  <span className="group-hover:text-slate-400 transition-colors">Zero Internal Footprint</span>
+                  <span className="group-hover:text-slate-400 transition-colors">Zero Detection</span>
                 </div>
                 <div className="flex items-center space-x-3 group cursor-help">
                   <div className="w-2 h-2 rounded-full bg-purple-500 group-hover:shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-all"></div>
                   <span className="group-hover:text-slate-400 transition-colors">Encrypted IO Distribution</span>
                 </div>
                 <div className="flex-1"></div>
-                <div className="text-[9px] font-black opacity-30 italic">GLYCON_SYSTEMS_GLOBAL_HUD_v2.0</div>
+                <div className="text-[9px] font-black opacity-30 italic">Glycon</div>
               </div>
             </div>
           )}

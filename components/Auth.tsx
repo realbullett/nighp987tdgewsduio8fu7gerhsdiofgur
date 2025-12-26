@@ -93,7 +93,7 @@ const Auth: React.FC = () => {
           disabled={loading}
           className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-black italic uppercase tracking-widest py-4 rounded-lg shadow-lg shadow-purple-900/40 transition-all active:scale-95"
         >
-          {loading ? 'Processing...' : view === AuthView.LOGIN ? 'Verify Session' : 'Create Profile'}
+          {loading ? 'Processing...' : view === AuthView.LOGIN ? 'LOGIN' : 'Create Profile'}
         </button>
       </form>
 

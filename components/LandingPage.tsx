@@ -53,7 +53,7 @@ const LandingPage: React.FC<{ user: SupabaseUser | null, onLogout: () => void }>
         <div className="flex items-center space-x-6 pointer-events-auto">
            <div className="flex items-center space-x-2 text-slate-600 text-[10px] font-black uppercase tracking-widest">
               <Lock size={12} className="text-purple-500" />
-              <span>Usermode Framework</span>
+              <span>ALPHA</span>
            </div>
         </div>
       </nav>
@@ -68,13 +68,13 @@ const LandingPage: React.FC<{ user: SupabaseUser | null, onLogout: () => void }>
               <section className="h-screen flex flex-col items-center justify-center text-center px-4">
                 <div className="space-y-4 max-w-4xl animate-in fade-in slide-in-from-bottom-8 duration-1000">
                   <div className="inline-block px-4 py-1.5 rounded-full bg-purple-900/20 border border-purple-500/20 text-purple-400 text-[10px] font-black uppercase tracking-[0.3em] mb-4">
-                    Glycon Usermode v2.5.0
+                    #1 Roblox External ($0)
                   </div>
                   <h1 className="text-7xl md:text-9xl font-black italic tracking-tighter text-white uppercase leading-[0.8] mb-6">
-                    USERMODE<br/><span className="text-purple-600">COMMAND.</span>
+                    GLYSON<br/><span className="text-purple-600">FREE</span>
                   </h1>
                   <p className="text-slate-400 text-lg md:text-xl font-medium mb-12 max-w-2xl mx-auto leading-relaxed">
-                    A premium usermode external framework for high-fidelity execution. Optimized for performance and stability across all architectures.
+                    #1 Non-pasted External, Always undetected & always untouchable
                   </p>
                   <div className="flex flex-col items-center justify-center space-y-4 opacity-40">
                     <div className="animate-bounce">
@@ -98,7 +98,7 @@ const LandingPage: React.FC<{ user: SupabaseUser | null, onLogout: () => void }>
                 icon={<Activity size={48} />}
                 title="Intelligence"
                 description="Real-time data resolvers that simulate kinetic movement patterns and project future target positions."
-                items={["Kinetic Resolvers", "Velocity Prediction", "Ping Compensation", "Sample Sync", "Auto-Clicker"]}
+                items={["Kinetic Resolvers", "Velocity Prediction", "Ping Compensation", "Manipulation", "Misc"]}
                 align="left"
               />
 
@@ -131,8 +131,8 @@ const LandingPage: React.FC<{ user: SupabaseUser | null, onLogout: () => void }>
                 <div className="absolute top-0 w-full h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
                 <div className="w-full max-w-4xl px-4 flex flex-col items-center py-20">
                     <div className="mb-12 text-center">
-                        <h2 className="text-6xl font-black italic text-white uppercase tracking-tighter mb-4">ACCESS_GATE.</h2>
-                        <p className="text-slate-600 text-[10px] uppercase font-bold tracking-[0.4em] mb-4">Registration Key Required: 'gly'</p>
+                        <h2 className="text-6xl font-black italic text-white uppercase tracking-tighter mb-4">GET GLYCON</h2>
+                        <p className="text-slate-600 text-[10px] uppercase font-bold tracking-[0.4em] mb-4">Registration</p>
                     </div>
                     <div className="w-full">
                       <Auth />
