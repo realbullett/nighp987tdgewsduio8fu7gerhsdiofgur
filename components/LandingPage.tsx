@@ -71,7 +71,7 @@ const LandingPage: React.FC<{ user: SupabaseUser | null, onLogout: () => void }>
                     #1 Roblox External ($0)
                   </div>
                   <h1 className="text-7xl md:text-9xl font-black italic tracking-tighter text-white uppercase leading-[0.8] mb-6">
-                    G L Y S O N<br/><span className="text-purple-600">FREE</span>
+                    G  L  Y  C  O  N<br/><span className="text-purple-600">FREE</span>
                   </h1>
                   <p className="text-slate-400 text-lg md:text-xl font-medium mb-12 max-w-2xl mx-auto leading-relaxed">
                     #1 Non-pasted External, Always undetected & always untouchable
