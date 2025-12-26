@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 
-=======
->>>>>>> 1f1919d266ee3e20498483f87b7bd762536000c0
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -16,8 +13,4 @@ root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
-<<<<<<< HEAD
 );
-=======
-);
->>>>>>> 1f1919d266ee3e20498483f87b7bd762536000c0

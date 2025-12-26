@@ -1,10 +1,5 @@
 {
-<<<<<<< HEAD
   "name": "Glycon - Roblox External Showcase",
   "description": "A high-end scrollytelling showcase for Glycon, a premium Roblox external featuring advanced aim, visuals, and character modifications.",
-=======
-  "name": "Glycon",
-  "description": "Secure community hub for Glycon users. Roblox external excellence, real-time messaging, and high-end aesthetics.",
->>>>>>> 1f1919d266ee3e20498483f87b7bd762536000c0
   "requestFramePermissions": []
 }
