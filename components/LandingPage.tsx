@@ -90,7 +90,7 @@ const HUDOverlay = () => {
           <div className="space-y-1">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="text-[8px] text-purple-400/60 leading-none">
-                0x{Math.random().toString(16).substr(2, 8).toUpperCase()} -> CACHE_V{i}
+                0x{Math.random().toString(16).substr(2, 8).toUpperCase()} {"->"} CACHE_V{i}
               </div>
             ))}
           </div>
