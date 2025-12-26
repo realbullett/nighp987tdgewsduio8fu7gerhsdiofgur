@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { supabase } from '../supabase';
 import { AuthView } from '../types';
 
-const ACCESS_KEY_REQUIRED = 'gly';
+const ACCESS_KEY_REQUIRED = 'AbGt5J3GfA6Yr5C';
 
 const Auth: React.FC = () => {
   const [view, setView] = useState<AuthView>(AuthView.LOGIN);
@@ -24,8 +24,17 @@ const Auth: React.FC = () => {
           throw new Error('Invalid Access Key. Please contact an administrator.');
         }
         const effectiveEmail = email.includes('@') ? email : `${email.toLowerCase().replace(/\s/g, '')}@glycon.internal`;
-        const { error: signUpError } = await supabase.auth.signUp({ email: effectiveEmail, password });
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email: effectiveEmail, password });
         if (signUpError) throw signUpError;
+        
+        // Create a public profile record so we can count total registered users
+        if (signUpData.user) {
+          await supabase.from('profiles').upsert({ 
+            id: signUpData.user.id, 
+            username: email.split('@')[0] 
+          });
+        }
+
         alert('Registration successful! Logging you in...');
         const { error: signInError } = await supabase.auth.signInWithPassword({ email: effectiveEmail, password });
         if (signInError) throw signInError;
@@ -77,7 +86,7 @@ const Auth: React.FC = () => {
               value={accessKey}
               onChange={(e) => setAccessKey(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:border-purple-500 transition-colors"
-              placeholder="Enter 'gly'..."
+              placeholder="Enter Access Key..."
             />
           </div>
         )}

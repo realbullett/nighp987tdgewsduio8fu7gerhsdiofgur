@@ -7,6 +7,8 @@ import Scene from './Visual3D';
 import Auth from './Auth';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
+const LOGO_URL = "https://media.discordapp.net/attachments/1324825706303197357/1453312744907477025/fav.png?ex=69504a37&is=694ef8b7&hm=75495ec0b3d3e9caf20d93f015613558ee165ea98d72e4ae1049f0dcba0505cf&=&format=webp&quality=lossless&width=375&height=375";
+
 interface SectionProps {
   icon: React.ReactNode;
   title: string;
@@ -47,7 +49,9 @@ const LandingPage: React.FC<{ user: SupabaseUser | null, onLogout: () => void }>
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-[100] flex items-center justify-between px-8 py-6 pointer-events-none">
         <div className="flex items-center space-x-2 pointer-events-auto cursor-pointer">
-          <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center font-black italic shadow-[0_0_30px_rgba(147,51,234,0.4)]">G</div>
+          <div className="w-10 h-10 overflow-hidden rounded-lg flex items-center justify-center shadow-[0_0_30px_rgba(147,51,234,0.4)] border border-purple-500/30">
+            <img src={LOGO_URL} alt="Glycon Logo" className="w-full h-full object-cover" />
+          </div>
           <span className="text-xl font-black italic tracking-tighter text-white">GLYCON</span>
         </div>
         <div className="flex items-center space-x-6 pointer-events-auto">

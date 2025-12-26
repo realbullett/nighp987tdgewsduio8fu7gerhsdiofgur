@@ -19,11 +19,15 @@ import {
   CheckCircle2,
   Calendar,
   Settings,
-  // Added missing Monitor icon
-  Monitor
+  Monitor,
+  Users,
+  MessageSquare
 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { User } from '@supabase/supabase-js';
+
+const LOGO_URL = "https://media.discordapp.net/attachments/1324825706303197357/1453312744907477025/fav.png?ex=69504a37&is=694ef8b7&hm=75495ec0b3d3e9caf20d93f015613558ee165ea98d72e4ae1049f0dcba0505cf&=&format=webp&quality=lossless&width=375&height=375";
+const DISCORD_URL = "https://discord.gg/aQ2FBcJfqP";
 
 interface Release {
   version: string;
@@ -42,9 +46,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const isAdmin = user.email === 'act@glycon.internal' || user.email?.startsWith('act@');
   
   const [release, setRelease] = useState<Release | null>(null);
+  const [userCount, setUserCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [tableMissing, setTableMissing] = useState(false);
+  const [discordJoined, setDiscordJoined] = useState<boolean>(() => {
+    return localStorage.getItem('glycon_discord_joined') === 'true';
+  });
 
   // Form states
   const [v, setV] = useState('');
@@ -57,7 +65,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   useEffect(() => {
     fetchLatestRelease();
+    fetchUserCount();
   }, []);
+
+  const handleJoinDiscord = () => {
+    window.open(DISCORD_URL, '_blank');
+    localStorage.setItem('glycon_discord_joined', 'true');
+    setDiscordJoined(true);
+  };
+
+  const fetchUserCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      
+      if (!error) {
+        setUserCount(count);
+      }
+    } catch (err) {
+      console.warn("Could not fetch user count:", err);
+    }
+  };
 
   const fetchLatestRelease = async () => {
     try {
@@ -155,7 +184,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <Database size={64} className="text-red-500 mb-6 animate-pulse" />
         <h2 className="text-3xl font-black text-white uppercase mb-4 italic tracking-tighter">Database Connectivity Failed</h2>
         <p className="text-slate-400 max-w-lg mb-8 leading-relaxed">
-          The <span className="text-white font-mono">releases</span> table was not detected. Ensure your infrastructure is properly provisioned.
+          The <span className="text-white font-mono">releases</span> and <span className="text-white font-mono">profiles</span> tables were not detected. Ensure your infrastructure is properly provisioned.
         </p>
         <div className="bg-slate-900/80 backdrop-blur-md p-6 rounded-xl border border-slate-800 text-left font-mono text-xs text-purple-300 mb-8 max-w-2xl overflow-x-auto shadow-2xl">
           <div className="text-slate-500 mb-2 border-b border-slate-800 pb-2 uppercase tracking-widest text-[10px] font-black">Provisioning SQL</div>
@@ -166,9 +195,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           &nbsp;&nbsp;changelog text,<br/>
           &nbsp;&nbsp;download_url text,<br/>
           &nbsp;&nbsp;created_at timestamptz default now()<br/>
+          );<br/><br/>
+          CREATE TABLE profiles (<br/>
+          &nbsp;&nbsp;id uuid references auth.users on delete cascade primary key,<br/>
+          &nbsp;&nbsp;username text,<br/>
+          &nbsp;&nbsp;created_at timestamptz default now()<br/>
           );
         </div>
-        <button onClick={() => window.location.reload()} className="bg-purple-600 px-8 py-3 rounded-lg font-black uppercase text-xs tracking-widest hover:bg-purple-500 transition-all shadow-lg shadow-purple-900/20 active:scale-95">Re-Verify Table</button>
+        <button onClick={() => window.location.reload()} className="bg-purple-600 px-8 py-3 rounded-lg font-black uppercase text-xs tracking-widest hover:bg-purple-500 transition-all shadow-lg shadow-purple-900/20 active:scale-95">Re-Verify Tables</button>
       </div>
     );
   }
@@ -181,7 +215,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         
         <div className="flex flex-col mb-12">
           <div className="flex items-center space-x-3 mb-8">
-            <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center font-black italic shadow-lg shadow-purple-900/20">G</div>
+            <div className="w-10 h-10 overflow-hidden rounded-lg flex items-center justify-center shadow-lg shadow-purple-900/20 border border-purple-500/30">
+              <img src={LOGO_URL} alt="Glycon Logo" className="w-full h-full object-cover" />
+            </div>
             <div>
               <div className="text-sm font-black text-white italic tracking-tighter uppercase leading-none">GLYCON</div>
               <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Operator Console</div>
@@ -216,6 +252,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest group">
             <Activity size={14} className="group-hover:text-purple-400" />
             <span>Versions</span>
+          </button>
+          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest group">
+            <Users size={14} className="group-hover:text-purple-400" />
+            <span>Registered Clients</span>
           </button>
           <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest group">
             <Bug size={14} className="group-hover:text-purple-400" />
@@ -364,8 +404,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     GLYCON<br/><span className="text-purple-600">DASHBOARD</span>
                   </h1>
                 </div>
-                <div className="text-right hidden md:block">
-                  <div className="text-[10px] font-black uppercase text-slate-600 tracking-widest mb-2">Status</div>
+                <div className="flex flex-col items-end gap-3 hidden md:flex">
+                  <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
+                    <Users size={14} className="text-purple-400" />
+                    <span className="text-xs font-bold text-white uppercase italic tracking-widest">Total Clients: {userCount !== null ? userCount : '...'}</span>
+                  </div>
                   <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
                     <span className="text-xs font-bold text-white uppercase italic tracking-widest">Live: v{release?.version || '0.0.0'}</span>
@@ -378,6 +421,26 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 
                 {/* Release Card */}
                 <div className="col-span-12 lg:col-span-8 space-y-8">
+                  {!discordJoined && (
+                    <div className="bg-indigo-600/20 border border-indigo-500/50 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 animate-in zoom-in duration-500">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                          <MessageSquare className="text-white" />
+                        </div>
+                        <div>
+                          <h4 className="text-white font-black italic uppercase tracking-widest text-sm">Join the Community</h4>
+                          <p className="text-xs text-indigo-300">Access to loader downloads is locked until you join our Discord server.</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={handleJoinDiscord}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap shadow-lg shadow-indigo-900/40 active:scale-95"
+                      >
+                        Join Discord Server
+                      </button>
+                    </div>
+                  )}
+
                   <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-3xl p-10 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-8 opacity-5">
                       <Cpu size={120} className="text-white" />
@@ -408,15 +471,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       </p>
 
                       <div className="pt-6 flex flex-wrap gap-4">
-                        <a 
-                          href={release?.download_url || '#'} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="inline-flex items-center space-x-4 bg-white hover:bg-purple-500 hover:text-white text-black px-10 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-white/5 active:scale-95"
-                        >
-                          <span>Verify & Download Loader</span>
-                          <Download size={16} />
-                        </a>
+                        {discordJoined ? (
+                          <a 
+                            href={release?.download_url || '#'} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="inline-flex items-center space-x-4 bg-white hover:bg-purple-500 hover:text-white text-black px-10 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-white/5 active:scale-95"
+                          >
+                            <span>Verify & Download Loader</span>
+                            <Download size={16} />
+                          </a>
+                        ) : (
+                          <button 
+                            onClick={handleJoinDiscord}
+                            className="inline-flex items-center space-x-4 bg-slate-800/50 text-slate-500 px-10 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700/50 cursor-not-allowed grayscale"
+                          >
+                            <span>Join Discord to Unlock</span>
+                            <MessageSquare size={16} />
+                          </button>
+                        )}
                         <button className="inline-flex items-center space-x-4 bg-slate-800/50 hover:bg-slate-800 text-slate-400 hover:text-white px-8 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700/50">
                           <span>View Documentation</span>
                           <FileText size={16} />

@@ -1,8 +1,17 @@
-
 import React, { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useScroll, MeshDistortMaterial, Stars, Environment, Box, Torus, Sphere, Icosahedron, Octahedron, Ring, Float } from '@react-three/drei';
 import * as THREE from 'three';
+
+// Fix: Use component aliases for R3F intrinsic elements to resolve JSX namespace errors when types are not detected.
+const Group = 'group' as any;
+const Mesh = 'mesh' as any;
+const MeshStandardMaterial = 'meshStandardMaterial' as any;
+const MeshBasicMaterial = 'meshBasicMaterial' as any;
+const AmbientLight = 'ambientLight' as any;
+const PointLight = 'pointLight' as any;
+const GridHelper = 'gridHelper' as any;
+const PlaneGeometry = 'planeGeometry' as any;
 
 const SECTION_HEIGHT = 10; // Vertical distance between 3D modules
 
@@ -13,16 +22,17 @@ const HeroModule = () => {
     meshRef.current.rotation.z += 0.002;
   });
   return (
-    <group ref={meshRef}>
+    // Fix: Using Group alias to avoid intrinsic element error
+    <Group ref={meshRef}>
       <Float speed={2} rotationIntensity={1} floatIntensity={1}>
         <Octahedron args={[2, 0]}>
-          <meshStandardMaterial color="#7c3aed" wireframe transparent opacity={0.6} emissive="#7c3aed" emissiveIntensity={2} />
+          <MeshStandardMaterial color="#7c3aed" wireframe transparent opacity={0.6} emissive="#7c3aed" emissiveIntensity={2} />
         </Octahedron>
         <Octahedron args={[1.2, 0]}>
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={5} />
+          <MeshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={5} />
         </Octahedron>
       </Float>
-    </group>
+    </Group>
   );
 };
 
@@ -36,36 +46,36 @@ const AimModule = () => {
     ring2.current.rotation.z += 0.02;
   });
   return (
-    <group>
-      <mesh ref={ring1}>
+    <Group>
+      <Mesh ref={ring1}>
         <Torus args={[1.5, 0.02, 16, 100]}>
-          <meshStandardMaterial color="#a855f7" emissive="#a855f7" emissiveIntensity={10} />
+          <MeshStandardMaterial color="#a855f7" emissive="#a855f7" emissiveIntensity={10} />
         </Torus>
-      </mesh>
-      <mesh ref={ring2}>
+      </Mesh>
+      <Mesh ref={ring2}>
         <Torus args={[1.2, 0.01, 16, 100]}>
-          <meshStandardMaterial color="#d8b4fe" emissive="#d8b4fe" emissiveIntensity={5} />
+          <MeshStandardMaterial color="#d8b4fe" emissive="#d8b4fe" emissiveIntensity={5} />
         </Torus>
-      </mesh>
+      </Mesh>
       <Box args={[0.01, 3, 0.01]}>
-        <meshBasicMaterial color="#a855f7" transparent opacity={0.4} />
+        <MeshBasicMaterial color="#a855f7" transparent opacity={0.4} />
       </Box>
       <Box args={[3, 0.01, 0.01]}>
-        <meshBasicMaterial color="#a855f7" transparent opacity={0.4} />
+        <MeshBasicMaterial color="#a855f7" transparent opacity={0.4} />
       </Box>
-    </group>
+    </Group>
   );
 };
 
 const IntelModule = () => {
   return (
-    <group>
+    <Group>
       <Float speed={5} rotationIntensity={2} floatIntensity={2}>
         <Icosahedron args={[1.5, 1]}>
           <MeshDistortMaterial color="#6d28d9" distort={0.4} speed={3} emissive="#6d28d9" emissiveIntensity={2} />
         </Icosahedron>
       </Float>
-    </group>
+    </Group>
   );
 };
 
@@ -75,30 +85,30 @@ const TacticalModule = () => {
     sweep.current.rotation.z -= 0.05;
   });
   return (
-    <group rotation={[-Math.PI / 3, 0, 0]}>
-      <gridHelper args={[6, 12, '#4b5563', '#1e1b4b']} />
+    <Group rotation={[-Math.PI / 3, 0, 0]}>
+      <GridHelper args={[6, 12, '#4b5563', '#1e1b4b']} />
       <Ring args={[2.4, 2.5, 64]}>
-        <meshBasicMaterial color="#a855f7" side={THREE.DoubleSide} />
+        <MeshBasicMaterial color="#a855f7" side={THREE.DoubleSide} />
       </Ring>
-      <mesh ref={sweep} position={[0, 0, 0.05]}>
-        <planeGeometry args={[2.5, 0.05]} />
-        <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} transparent opacity={0.8} />
-      </mesh>
-    </group>
+      <Mesh ref={sweep} position={[0, 0, 0.05]}>
+        <PlaneGeometry args={[2.5, 0.05]} />
+        <MeshBasicMaterial color="#ffffff" side={THREE.DoubleSide} transparent opacity={0.8} />
+      </Mesh>
+    </Group>
   );
 };
 
 const PhysicsModule = () => {
-  const group = useRef<THREE.Group>(null!);
+  const groupRef = useRef<THREE.Group>(null!);
   useFrame((state) => {
-    group.current.children.forEach((child, i) => {
+    groupRef.current.children.forEach((child, i) => {
       child.rotation.x += 0.01 + i * 0.001;
       child.rotation.y += 0.01 - i * 0.001;
       child.position.y += Math.sin(state.clock.elapsedTime + i) * 0.002;
     });
   });
   return (
-    <group ref={group}>
+    <Group ref={groupRef}>
       {[...Array(12)].map((_, i) => (
         <Box 
           key={i} 
@@ -109,23 +119,23 @@ const PhysicsModule = () => {
             Math.sin(i * 0.8) * 1
           ]}
         >
-          <meshStandardMaterial color={i % 2 === 0 ? "#7c3aed" : "#ffffff"} emissive={i % 2 === 0 ? "#7c3aed" : "#ffffff"} emissiveIntensity={2} />
+          <MeshStandardMaterial color={i % 2 === 0 ? "#7c3aed" : "#ffffff"} emissive={i % 2 === 0 ? "#7c3aed" : "#ffffff"} emissiveIntensity={2} />
         </Box>
       ))}
-    </group>
+    </Group>
   );
 };
 
 const WorldModule = () => {
   return (
-    <group>
+    <Group>
       <Sphere args={[2, 64, 64]}>
         <MeshDistortMaterial color="#c084fc" distort={0.6} speed={4} wireframe />
       </Sphere>
       <Sphere args={[1, 32, 32]}>
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={10} />
+        <MeshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={10} />
       </Sphere>
-    </group>
+    </Group>
   );
 };
 
@@ -142,42 +152,42 @@ const Scene = () => {
   });
 
   return (
-    <group ref={worldRef}>
+    <Group ref={worldRef}>
       <Stars radius={100} depth={50} count={7000} factor={4} saturation={0} fade speed={1.5} />
-      <ambientLight intensity={0.4} />
-      <pointLight position={[10, 10, 10]} intensity={3} color="#7c3aed" />
+      <AmbientLight intensity={0.4} />
+      <PointLight position={[10, 10, 10]} intensity={3} color="#7c3aed" />
 
       {/* Position each module vertically */}
-      <group position={[0, 0, 0]}>
+      <Group position={[0, 0, 0]}>
         <HeroModule />
-      </group>
+      </Group>
 
-      <group position={[0, -SECTION_HEIGHT, 0]}>
+      <Group position={[0, -SECTION_HEIGHT, 0]}>
         <AimModule />
-      </group>
+      </Group>
 
-      <group position={[0, -SECTION_HEIGHT * 2, 0]}>
+      <Group position={[0, -SECTION_HEIGHT * 2, 0]}>
         <IntelModule />
-      </group>
+      </Group>
 
-      <group position={[0, -SECTION_HEIGHT * 3, 0]}>
+      <Group position={[0, -SECTION_HEIGHT * 3, 0]}>
         <TacticalModule />
-      </group>
+      </Group>
 
-      <group position={[0, -SECTION_HEIGHT * 4, 0]}>
+      <Group position={[0, -SECTION_HEIGHT * 4, 0]}>
         <PhysicsModule />
-      </group>
+      </Group>
 
-      <group position={[0, -SECTION_HEIGHT * 5, 0]}>
+      <Group position={[0, -SECTION_HEIGHT * 5, 0]}>
         <WorldModule />
-      </group>
+      </Group>
       
-      <group position={[0, -SECTION_HEIGHT * 6, 0]}>
+      <Group position={[0, -SECTION_HEIGHT * 6, 0]}>
         <HeroModule /> {/* Final module for Auth section */}
-      </group>
+      </Group>
 
       <Environment preset="night" />
-    </group>
+    </Group>
   );
 };
 
