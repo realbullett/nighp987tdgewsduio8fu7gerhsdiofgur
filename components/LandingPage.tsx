@@ -275,12 +275,12 @@ const LandingPage: React.FC<{ user: SupabaseUser | null, onLogout: () => void }>
                 <div className="absolute top-0 w-full h-px bg-gradient-to-r from-transparent via-slate-800 to-transparent" />
                 <div className="flex flex-col items-center space-y-6">
                   <div className="text-[12px] font-black uppercase tracking-[1.5em] text-slate-700">
-                    GLYCON_SYSTEMS_GLOBAL
+                    ACT LOVES YOU
                   </div>
                   <div className="flex items-center gap-8 text-[9px] font-mono text-slate-600 uppercase">
-                    <span>BUILD_STATE: PRODUCTION</span>
-                    <span>ARCH: X64_NATIVE</span>
-                    <span>LICENSE: OPEN_SOURCE</span>
+                    <span>Copyright</span>
+                    <span>2025</span>
+                    <span>Glycon</span>
                   </div>
                 </div>
               </footer>
