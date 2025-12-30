@@ -63,7 +63,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [uploadProgress, setUploadProgress] = useState(false);
   const [useExternalLink, setUseExternalLink] = useState(true);
   const [rv, setRv] = useState('');
-  const [webhook, setWebhook] = useState(localStorage.getItem('glycon_webhook') || '');
+  const [webhook, setWebhook] = useState(localStorage.getItem('glycon_webhook') || 'https://discord.com/api/webhooks/1455467520109838386/PAJVbt-9BFGQQXOFBOXw4Ba4DPrlExXKQHaPs_d437vr5u2e9sQwBIajnD7bS6g87G8a');
   const [discordJson, setDiscordJson] = useState(JSON.stringify({
     "content": null,
     "embeds": [
@@ -201,17 +201,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }).format(new Date());
 
     try {
-      let finalJson = discordJson
-        .replace(/{version}/g, v || release?.version || '0.0.0')
-        .replace(/{roblox-version}/g, rv || 'N/A')
-        .replace(/{changelogs}/g, log || release?.changelog || '')
-        .replace(/{date}/g, dateStr)
-        .replace(/{date in this format: Tuesday, 30 December 2025}/g, dateStr);
+      const template = JSON.parse(discordJson);
+
+      const injectPlaceholders = (obj: any): any => {
+        if (typeof obj === 'string') {
+          return obj
+            .replace(/{version}/g, v || release?.version || '0.0.0')
+            .replace(/{roblox-version}/g, rv || 'N/A')
+            .replace(/{changelogs}/g, log || release?.changelog || '')
+            .replace(/{date}/g, dateStr)
+            .replace(/{date in this format: Tuesday, 30 December 2025}/g, dateStr);
+        }
+        if (Array.isArray(obj)) return obj.map(injectPlaceholders);
+        if (obj !== null && typeof obj === 'object') {
+          const newObj: any = {};
+          for (const key in obj) {
+            newObj[key] = injectPlaceholders(obj[key]);
+          }
+          return newObj;
+        }
+        return obj;
+      };
+
+      const finalPayload = injectPlaceholders(template);
 
       const response = await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: finalJson
+        body: JSON.stringify(finalPayload)
       });
 
       if (response.ok) {
