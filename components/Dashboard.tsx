@@ -664,12 +664,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[11px] leading-loose space-y-4">
                       {release?.changelog ? (
                         <div className="text-slate-400 whitespace-pre-wrap">
-                          {release.changelog.split('\n').map((line, i) => (
-                            <div key={i} className={`flex items-start space-x-2 ${line.startsWith('+') ? 'text-green-400/80' : line.startsWith('-') ? 'text-red-400/80' : 'text-slate-400'}`}>
-                              <span className="text-slate-600 opacity-50">[{i + 1}]</span>
-                              <span>{line}</span>
-                            </div>
-                          ))}
+                          {release.changelog.split('\n').map((line, i) => {
+                            let colorClass = 'text-slate-400';
+                            const trimmed = line.trim();
+                            if (trimmed.startsWith('[+]') || trimmed.startsWith('+')) colorClass = 'text-green-400/80';
+                            else if (trimmed.startsWith('[-]') || trimmed.startsWith('-')) colorClass = 'text-red-400/80';
+                            else if (trimmed.startsWith('[!]')) colorClass = 'text-amber-400/80';
+                            else if (trimmed.startsWith('[*]')) colorClass = 'text-blue-400/80';
+
+                            return (
+                              <div key={i} className={`flex items-start space-x-2 ${colorClass}`}>
+                                <span className="text-slate-600 opacity-50">[{i + 1}]</span>
+                                <span>{line}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <div className="flex items-center justify-center h-full text-slate-700 italic">
