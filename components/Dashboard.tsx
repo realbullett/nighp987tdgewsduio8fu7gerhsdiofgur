@@ -57,6 +57,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   // Form states
   const [v, setV] = useState('');
   const [desc, setDesc] = useState('');
+  const [status, setStatus] = useState('Undetected'); // New Status State
   const [log, setLog] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -69,7 +70,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     "embeds": [
       {
         "title": "😎 [Glycon: Update] · {version} 🟦",
-        "description": "@Updates @Glycon\n\n**{date}**\n• Compatible with deployed **{roblox-version}**",
+        "description": "@Updates @Glycon\n\n**{date}**\n• Status: **{status}**\n• Compatible with deployed **{roblox-version}**",
         "color": 2829617,
         "fields": [
           {
@@ -126,8 +127,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         setRelease(data);
         setV(data.version);
         setDesc(data.description);
+        setStatus(data.status || 'Undetected'); // Load Status
         setLog(data.changelog);
         setExternalUrl(data.download_url);
+        setRv(data.roblox_version || '');
       }
     } catch (err) {
       console.error("Setup error:", err);
@@ -164,13 +167,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         finalDownloadUrl = publicUrl;
       }
 
-      if (!finalDownloadUrl) throw new Error("A download URL or file is required.");
-
       const { error: dbError } = await supabase.from('releases').insert({
         version: v,
         description: desc,
+        status: status, // Save Status
         changelog: log,
-        download_url: finalDownloadUrl
+        download_url: finalDownloadUrl,
+        roblox_version: rv
       });
 
       if (dbError) throw dbError;
@@ -208,6 +211,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           return obj
             .replace(/{version}/g, v || release?.version || '0.0.0')
             .replace(/{roblox-version}/g, rv || 'N/A')
+            .replace(/{status}/g, status || 'Undetected')
             .replace(/{changelogs}/g, log || release?.changelog || '')
             .replace(/{date}/g, dateStr)
             .replace(/{date in this format: Tuesday, 30 December 2025}/g, dateStr);
@@ -388,6 +392,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none font-mono text-sm transition-all shadow-inner"
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Current Status</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['Undetected', 'Detected', 'Maintenance', 'Testing'].map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => setStatus(s)}
+                            className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${status === s
+                                ? 'bg-purple-600 border-purple-500 text-white'
+                                : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
+                              }`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Distribution Summary</label>
                       <textarea
