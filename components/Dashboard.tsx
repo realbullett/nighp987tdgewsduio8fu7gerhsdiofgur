@@ -560,7 +560,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <div className="flex flex-col items-end gap-3 hidden md:flex">
                   <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
                     <Users size={14} className="text-purple-400" />
-                    <span className="text-xs font-bold text-white uppercase italic tracking-widest">Total Clients: 19{userCount !== null ? userCount : '...'}</span>
+                    <span className="text-xs font-bold text-white uppercase italic tracking-widest">Total Clients: {userCount ?? 0}</span>
                   </div>
                   <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
