@@ -383,26 +383,37 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
                 <div className="grid grid-cols-2 gap-8">
                   <div className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Build Version</label>
-                      <input
-                        value={v}
-                        onChange={e => setV(e.target.value)}
-                        placeholder="e.g. 2.5.0"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none font-mono text-sm transition-all shadow-inner"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Build Version</label>
+                        <input
+                          value={v}
+                          onChange={e => setV(e.target.value)}
+                          placeholder="e.g. 2.5.0"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none font-mono text-sm transition-all shadow-inner"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Target Roblox Ver</label>
+                        <input
+                          value={rv}
+                          onChange={e => setRv(e.target.value)}
+                          placeholder="version-..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none font-mono text-sm transition-all shadow-inner"
+                        />
+                      </div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Current Status</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {['Undetected', 'Detected', 'Maintenance', 'Testing'].map((s) => (
+                      <div className="grid grid-cols-3 gap-2">
+                        {['WORKING', 'PATCHED', 'UNDETECTED', 'DETECTED', 'MAINTENANCE', 'TESTING'].map((s) => (
                           <button
                             key={s}
                             onClick={() => setStatus(s)}
-                            className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${status === s
-                                ? 'bg-purple-600 border-purple-500 text-white'
-                                : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
+                            className={`px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${status === s
+                              ? 'bg-purple-600 border-purple-500 text-white'
+                              : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
                               }`}
                           >
                             {s}
@@ -441,7 +452,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     <MessageSquare size={16} className="text-purple-500 opacity-50" />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
                       <label className="text-[9px] font-black uppercase text-slate-600 tracking-widest ml-1">Webhook URL</label>
                       <input
@@ -449,15 +460,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         onChange={e => setWebhook(e.target.value)}
                         type="password"
                         placeholder="https://discord.com/api/webhooks/..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white focus:border-purple-500 outline-none font-mono text-[10px] transition-all"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black uppercase text-slate-600 tracking-widest ml-1">Roblox Version</label>
-                      <input
-                        value={rv}
-                        onChange={e => setRv(e.target.value)}
-                        placeholder="e.g. version-5b07..."
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white focus:border-purple-500 outline-none font-mono text-[10px] transition-all"
                       />
                     </div>

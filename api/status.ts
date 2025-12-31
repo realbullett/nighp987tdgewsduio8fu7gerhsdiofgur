@@ -42,7 +42,7 @@ export default async function handler(req: any, res: any) {
             version: data.version || '0.0.0',
             last_updated: data.created_at,
             deployment_uptime: process.uptime(),
-            service_name: 'Glycon - Roblox External',
+            service_name: 'Glycon - #1 FREE Roblox External',
             motd: data.description || '',
             roblox_version: data.roblox_version || 'Unknown',
             latest_changelog: {
