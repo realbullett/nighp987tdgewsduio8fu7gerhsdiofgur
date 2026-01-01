@@ -32,11 +32,6 @@ export default async function handler(req: any, res: any) {
             });
         }
 
-        // Parse changelog text into lines
-        const changes = data.changelog
-            ? data.changelog.split('\n').filter((line: string) => line.trim().length > 0)
-            : [];
-
         const responsePayload = {
             status: data.status || 'Undetected',
             version: data.version || '0.0.0',
@@ -45,19 +40,7 @@ export default async function handler(req: any, res: any) {
             service_name: 'Glycon - #1 FREE Roblox External',
             motd: data.description || '',
             roblox_version: data.roblox_version || 'Unknown',
-            latest_changelog: {
-                version: data.version,
-                date: data.created_at,
-                changes: changes
-            },
-            // Keep legacy format as well
-            changelogs: [
-                {
-                    version: data.version,
-                    date: data.created_at,
-                    changes: changes
-                }
-            ]
+            changelogs: data.changelog || ''
         };
 
         res.status(200).json(responsePayload);
