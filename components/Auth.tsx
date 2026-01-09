@@ -51,48 +51,48 @@ const Auth: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto bg-slate-900/40 p-8 rounded-2xl border border-purple-500/20 backdrop-blur-md shadow-2xl">
-      <form onSubmit={handleAuth} className="space-y-4">
+    <div className="w-full max-w-md mx-auto bg-slate-900/60 p-8 rounded-2xl border border-slate-800 backdrop-blur-md">
+      <form onSubmit={handleAuth} className="space-y-5">
         <div>
-          <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-widest">Identity</label>
+          <label className="block text-sm font-semibold text-slate-300 mb-2">Username</label>
           <input
             type="text"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:border-purple-500 transition-colors"
-            placeholder="Username..."
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
+            placeholder="Enter username..."
           />
         </div>
 
         <div>
-          <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-widest">Secure Password</label>
+          <label className="block text-sm font-semibold text-slate-300 mb-2">Password</label>
           <input
             type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:border-purple-500 transition-colors"
-            placeholder="••••••••"
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
+            placeholder="Enter password..."
           />
         </div>
 
         {view === AuthView.REGISTER && (
-          <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 ml-1 tracking-widest">Access Key</label>
+          <div>
+            <label className="block text-sm font-semibold text-slate-300 mb-2">Access Key</label>
             <input
               type="text"
               required
               value={accessKey}
               onChange={(e) => setAccessKey(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:border-purple-500 transition-colors"
-              placeholder="Enter Access Key..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
+              placeholder="Enter access key..."
             />
           </div>
         )}
 
         {error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-xs font-medium">
+          <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
             {error}
           </div>
         )}
@@ -100,18 +100,18 @@ const Auth: React.FC = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-black italic uppercase tracking-widest py-4 rounded-lg shadow-lg shadow-purple-900/40 transition-all active:scale-95"
+          className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-semibold py-3 rounded-lg transition-colors"
         >
-          {loading ? 'Processing...' : view === AuthView.LOGIN ? 'LOGIN' : 'Create Account'}
+          {loading ? 'Processing...' : view === AuthView.LOGIN ? 'Login' : 'Create Account'}
         </button>
       </form>
 
       <div className="mt-6 text-center">
         <button
           onClick={() => setView(view === AuthView.LOGIN ? AuthView.REGISTER : AuthView.LOGIN)}
-          className="text-slate-500 hover:text-purple-400 text-[10px] font-black uppercase tracking-widest transition-colors"
+          className="text-slate-400 hover:text-purple-400 text-sm transition-colors"
         >
-          {view === AuthView.LOGIN ? "Register New Client" : "Existing Operator login"}
+          {view === AuthView.LOGIN ? "Create an account" : "Already have an account? Login"}
         </button>
       </div>
     </div>

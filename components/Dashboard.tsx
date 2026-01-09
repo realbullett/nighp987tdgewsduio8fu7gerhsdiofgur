@@ -248,172 +248,142 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   if (loading) {
     return (
-      <div className="h-screen w-full bg-[#020617] flex items-center justify-center">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-purple-500 border-opacity-50"></div>
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-purple-400">HUD</div>
-        </div>
+      <div className="h-screen w-full bg-slate-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
       </div>
     );
   }
 
   if (tableMissing) {
     return (
-      <div className="h-screen w-full bg-[#020617] flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
-        <Database size={64} className="text-red-500 mb-6 animate-pulse" />
-        <h2 className="text-3xl font-black text-white uppercase mb-4 italic tracking-tighter">Database Connectivity Failed</h2>
-        <p className="text-slate-400 max-w-lg mb-8 leading-relaxed">
-          The <span className="text-white font-mono">releases</span> and <span className="text-white font-mono">profiles</span> tables were not detected. Ensure your infrastructure is properly provisioned.
+      <div className="h-screen w-full bg-slate-950 flex flex-col items-center justify-center p-8 text-center">
+        <Database size={64} className="text-red-500 mb-6" />
+        <h2 className="text-2xl font-bold text-white mb-4">Database Connection Failed</h2>
+        <p className="text-slate-400 max-w-lg mb-8">
+          The releases and profiles tables were not detected. Ensure your infrastructure is properly provisioned.
         </p>
-        <div className="bg-slate-900/80 backdrop-blur-md p-6 rounded-xl border border-slate-800 text-left font-mono text-xs text-purple-300 mb-8 max-w-2xl overflow-x-auto shadow-2xl">
-          <div className="text-slate-500 mb-2 border-b border-slate-800 pb-2 uppercase tracking-widest text-[10px] font-black">Provisioning SQL</div>
-          CREATE TABLE releases (<br />
-          &nbsp;&nbsp;id bigint primary key generated always as identity,<br />
-          &nbsp;&nbsp;version text,<br />
-          &nbsp;&nbsp;description text,<br />
-          &nbsp;&nbsp;changelog text,<br />
-          &nbsp;&nbsp;download_url text,<br />
-          &nbsp;&nbsp;created_at timestamptz default now()<br />
-          );<br /><br />
-          CREATE TABLE profiles (<br />
-          &nbsp;&nbsp;id uuid references auth.users on delete cascade primary key,<br />
-          &nbsp;&nbsp;username text,<br />
-          &nbsp;&nbsp;created_at timestamptz default now()<br />
-          );
-        </div>
-        <button onClick={() => window.location.reload()} className="bg-purple-600 px-8 py-3 rounded-lg font-black uppercase text-xs tracking-widest hover:bg-purple-500 transition-all shadow-lg shadow-purple-900/20 active:scale-95">Re-Verify Tables</button>
+        <button onClick={() => window.location.reload()} className="bg-purple-600 px-6 py-3 rounded-lg text-white font-semibold hover:bg-purple-500 transition-colors">
+          Retry
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-300 font-sans flex overflow-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-300 flex">
       {/* Sidebar */}
-      <aside className="w-72 border-r border-slate-800 p-8 flex flex-col shrink-0 bg-[#020617] relative">
-        <div className="absolute right-0 top-0 h-full w-px bg-gradient-to-b from-transparent via-purple-500/20 to-transparent"></div>
-
-        <div className="flex flex-col mb-12">
-          <div className="flex items-center space-x-3 mb-8">
-            <div className="w-10 h-10 overflow-hidden rounded-lg flex items-center justify-center shadow-lg shadow-purple-900/20 border border-purple-500/30">
+      <aside className="w-64 border-r border-slate-800 p-6 flex flex-col shrink-0 bg-slate-900/50">
+        <div className="flex flex-col mb-8">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-10 h-10 overflow-hidden rounded-lg flex items-center justify-center">
               <img src={LOGO_URL} alt="Glycon Logo" className="w-full h-full object-cover" />
             </div>
             <div>
-              <div className="text-sm font-black text-white italic tracking-tighter uppercase leading-none">GLYCON</div>
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Operator Console</div>
+              <div className="text-sm font-bold text-white">Glycon</div>
+              <div className="text-xs text-slate-500">Dashboard</div>
             </div>
           </div>
 
-          <div className="p-4 bg-slate-900/40 rounded-xl border border-slate-800 space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
+          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
                 <ShieldCheck size={14} className="text-purple-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Session Identity</div>
-                <div className="text-xs font-bold text-white truncate font-mono uppercase tracking-tighter">
+                <div className="text-xs text-slate-500 mb-1">User</div>
+                <div className="text-sm font-semibold text-white truncate">
                   {user.email?.split('@')[0]}
                 </div>
               </div>
-            </div>
-            <div className="pt-3 border-t border-slate-800/50 flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Security Mode</span>
-              <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest bg-purple-900/20 px-2 py-0.5 rounded">Usermode</span>
             </div>
           </div>
         </div>
 
         <nav className="space-y-1 flex-1">
-          <div className="text-[10px] font-black uppercase text-slate-600 tracking-[0.2em] mb-4 px-2">Navigation</div>
-          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl bg-purple-600/10 text-purple-400 font-black text-[10px] uppercase tracking-widest border border-purple-500/20">
-            <Layers size={14} />
-            <span>Deployment</span>
+          <div className="text-xs font-semibold text-slate-500 mb-3 px-2">Navigation</div>
+          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg bg-purple-600/10 text-purple-400 border border-purple-500/20">
+            <Layers size={16} />
+            <span className="text-sm">Deployment</span>
           </button>
-          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest group">
-            <Activity size={14} className="group-hover:text-purple-400" />
-            <span>Versions</span>
+          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
+            <Activity size={16} />
+            <span className="text-sm">Versions</span>
           </button>
-          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest group">
-            <Users size={14} className="group-hover:text-purple-400" />
-            <span>Registered Clients</span>
+          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
+            <Users size={16} />
+            <span className="text-sm">Users</span>
           </button>
-          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest group">
-            <Bug size={14} className="group-hover:text-purple-400" />
-            <span>Debug Logs</span>
-          </button>
-          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-500 hover:text-white hover:bg-slate-900 transition-all font-black text-[10px] uppercase tracking-widest group">
-            <Settings size={14} className="group-hover:text-purple-400" />
-            <span>Config</span>
+          <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
+            <Settings size={16} />
+            <span className="text-sm">Settings</span>
           </button>
         </nav>
 
-        <div className="space-y-4 pt-8 border-t border-slate-800/50">
+        <div className="space-y-3 pt-6 border-t border-slate-800">
           {isAdmin && (
             <button
               onClick={() => setIsEditing(!isEditing)}
-              className={`w-full flex items-center justify-center space-x-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isEditing ? 'bg-white text-black' : 'bg-slate-800 text-white hover:bg-slate-700'}`}
+              className={`w-full flex items-center justify-center space-x-2 py-3 rounded-lg text-sm font-semibold transition-colors ${isEditing ? 'bg-white text-black' : 'bg-slate-800 text-white hover:bg-slate-700'}`}
             >
-              <Edit3 size={14} />
+              <Edit3 size={16} />
               <span>{isEditing ? 'Close Panel' : 'Admin Panel'}</span>
             </button>
           )}
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-900/10 text-[10px] font-black uppercase tracking-widest transition-all border border-transparent hover:border-red-500/20"
+            className="w-full flex items-center justify-center space-x-2 py-3 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-900/10 transition-colors"
           >
-            <LogOut size={14} />
-            <span>Terminate Session</span>
+            <LogOut size={16} />
+            <span className="text-sm">Logout</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto custom-scrollbar relative p-12 bg-purple-gradient">
-        <div className="max-w-6xl mx-auto space-y-12">
+      <main className="flex-1 overflow-y-auto p-8 md:p-12">
+        <div className="max-w-6xl mx-auto space-y-8">
 
           {isEditing && isAdmin ? (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-slate-900/60 backdrop-blur-xl border border-purple-500/20 rounded-3xl p-10 shadow-2xl space-y-8">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-6">
-                  <div>
-                    <h2 className="text-3xl font-black italic tracking-tighter text-white uppercase">Release Dispatch</h2>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Internal Distribution Protocol</p>
-                  </div>
+            <div>
+              <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 space-y-6">
+                <div className="border-b border-slate-800 pb-4">
+                  <h2 className="text-2xl font-bold text-white">Release Management</h2>
+                  <p className="text-sm text-slate-500 mt-1">Create and manage releases</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-8">
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Build Version</label>
+                        <label className="text-sm font-semibold text-slate-300">Version</label>
                         <input
                           value={v}
                           onChange={e => setV(e.target.value)}
                           placeholder="e.g. 2.5.0"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none font-mono text-sm transition-all shadow-inner"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:border-purple-500 outline-none text-sm"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Target Roblox Ver</label>
+                        <label className="text-sm font-semibold text-slate-300">Roblox Version</label>
                         <input
                           value={rv}
                           onChange={e => setRv(e.target.value)}
                           placeholder="version-..."
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none font-mono text-sm transition-all shadow-inner"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:border-purple-500 outline-none text-sm"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Current Status</label>
+                      <label className="text-sm font-semibold text-slate-300">Status</label>
                       <div className="grid grid-cols-3 gap-2">
                         {['WORKING', 'PATCHED', 'UNDETECTED', 'DETECTED', 'MAINTENANCE', 'TESTING'].map((s) => (
                           <button
                             key={s}
                             onClick={() => setStatus(s)}
-                            className={`px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${status === s
+                            className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${status === s
                               ? 'bg-purple-600 border-purple-500 text-white'
-                              : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                               }`}
                           >
                             {s}
@@ -423,66 +393,61 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Distribution Summary</label>
+                      <label className="text-sm font-semibold text-slate-300">Description</label>
                       <textarea
                         value={desc}
                         onChange={e => setDesc(e.target.value)}
                         placeholder="Feature overview..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none min-h-[140px] text-sm leading-relaxed transition-all shadow-inner"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none min-h-[120px] text-sm"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Internal Changelog</label>
+                    <label className="text-sm font-semibold text-slate-300">Changelog</label>
                     <textarea
                       value={log}
                       onChange={e => setLog(e.target.value)}
-                      placeholder="+ Feature A&#10;- Fixed Bug B&#10;* Optimized C"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-purple-500 outline-none min-h-[250px] font-mono text-xs leading-loose transition-all shadow-inner"
+                      placeholder="+ Feature A\n- Fixed Bug B\n* Optimized C"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none min-h-[200px] font-mono text-sm"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-6 pt-6 border-t border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-black italic text-white uppercase tracking-wider">Discord Dispatcher</h3>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Broadcast changelogs to the community</p>
-                    </div>
-                    <MessageSquare size={16} className="text-purple-500 opacity-50" />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black uppercase text-slate-600 tracking-widest ml-1">Webhook URL</label>
-                      <input
-                        value={webhook}
-                        onChange={e => setWebhook(e.target.value)}
-                        type="password"
-                        placeholder="https://discord.com/api/webhooks/..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white focus:border-purple-500 outline-none font-mono text-[10px] transition-all"
-                      />
-                    </div>
+                <div className="space-y-4 pt-6 border-t border-slate-800">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-1">Discord Integration</h3>
+                    <p className="text-sm text-slate-500">Broadcast changelogs to Discord</p>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between ml-1">
-                      <label className="text-[9px] font-black uppercase text-slate-600 tracking-widest">Embed JSON Editor</label>
-                      <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Use {`{version}`}, {`{date}`}, {`{roblox-version}`}, {`{changelogs}`}</span>
+                    <label className="text-sm font-semibold text-slate-300">Webhook URL</label>
+                    <input
+                      value={webhook}
+                      onChange={e => setWebhook(e.target.value)}
+                      type="password"
+                      placeholder="https://discord.com/api/webhooks/..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-white focus:border-purple-500 outline-none text-sm font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-semibold text-slate-300">Embed JSON</label>
+                      <span className="text-xs text-slate-500">Use {`{version}`}, {`{date}`}, {`{roblox-version}`}, {`{changelogs}`}</span>
                     </div>
                     <textarea
                       value={discordJson}
                       onChange={e => setDiscordJson(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-purple-300 focus:border-purple-500 outline-none min-h-[180px] font-mono text-[10px] leading-relaxed transition-all shadow-inner"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-3 text-purple-300 focus:border-purple-500 outline-none min-h-[150px] font-mono text-xs"
                     />
                   </div>
 
                   <button
                     onClick={handleDiscordPublish}
-                    className="w-full bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white py-3 rounded-xl font-black uppercase tracking-[0.2em] text-[10px] border border-purple-500/30 transition-all flex items-center justify-center space-x-2"
+                    className="w-full bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white py-3 rounded-lg font-semibold text-sm border border-purple-500/30 transition-colors flex items-center justify-center space-x-2"
                   >
-                    <MessageSquare size={14} />
-                    <span>DISPATCH TO DISCORD</span>
+                    <MessageSquare size={16} />
+                    <span>Publish to Discord</span>
                   </button>
                 </div>
 
@@ -490,35 +455,35 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setUseExternalLink(true)}
-                      className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${useExternalLink ? 'bg-purple-600 border-purple-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors border ${useExternalLink ? 'bg-purple-600 border-purple-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'}`}
                     >
                       Remote Link
                     </button>
                     <button
                       onClick={() => setUseExternalLink(false)}
-                      className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${!useExternalLink ? 'bg-purple-600 border-purple-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors border ${!useExternalLink ? 'bg-purple-600 border-purple-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'}`}
                     >
-                      Local Binary
+                      Upload File
                     </button>
                   </div>
 
                   {useExternalLink ? (
                     <div className="relative">
-                      <Link size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
+                      <Link size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
                       <input
                         value={externalUrl}
                         onChange={e => setExternalUrl(e.target.value)}
                         placeholder="https://distribution.cdn/loader.exe"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-white focus:border-purple-500 outline-none font-mono text-xs transition-all shadow-inner"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-12 pr-4 py-3 text-white focus:border-purple-500 outline-none font-mono text-sm"
                       />
                     </div>
                   ) : (
-                    <div className="relative bg-slate-950/50 p-10 rounded-2xl border-2 border-dashed border-slate-800 hover:border-purple-500/50 flex flex-col items-center justify-center space-y-4 transition-all group">
-                      <Upload size={32} className="text-slate-700 group-hover:text-purple-500 transition-colors" />
+                    <div className="relative bg-slate-950/50 p-8 rounded-lg border-2 border-dashed border-slate-800 hover:border-purple-500/50 flex flex-col items-center justify-center space-y-3 transition-colors group">
+                      <Upload size={32} className="text-slate-600 group-hover:text-purple-500 transition-colors" />
                       <input type="file" onChange={e => setFile(e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
                       <div className="text-center">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{file ? file.name : 'Select Loader Binary'}</div>
-                        <div className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Max Size: 50MB // .EXE Only</div>
+                        <div className="text-sm font-semibold text-slate-300 mb-1">{file ? file.name : 'Select File'}</div>
+                        <div className="text-xs text-slate-500">Max Size: 50MB • .EXE Only</div>
                       </div>
                     </div>
                   )}
@@ -527,44 +492,40 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <button
                   onClick={handleGlobalUpdate}
                   disabled={uploadProgress}
-                  className="w-full bg-white hover:bg-slate-200 text-black py-5 rounded-2xl font-black uppercase tracking-[0.4em] text-sm shadow-xl transition-all flex items-center justify-center space-x-4 disabled:opacity-50"
+                  className="w-full bg-white hover:bg-slate-100 text-black py-4 rounded-lg font-semibold text-sm transition-colors flex items-center justify-center space-x-3 disabled:opacity-50"
                 >
                   {uploadProgress ? (
                     <div className="flex items-center space-x-3">
                       <div className="w-4 h-4 border-2 border-slate-400 border-t-black rounded-full animate-spin" />
-                      <span>DISPATCHING...</span>
+                      <span>Publishing...</span>
                     </div>
                   ) : (
                     <>
                       <CheckCircle2 size={18} />
-                      <span>DEPLOY GLOBAL SYNC</span>
+                      <span>Deploy Release</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
           ) : (
-            <div className="space-y-12 animate-in fade-in duration-700">
-              {/* Header HUD */}
-              <div className="flex items-end justify-between border-b border-slate-800 pb-12 relative">
-                <div className="absolute left-0 bottom-0 h-[2px] w-24 bg-purple-500"></div>
+            <div className="space-y-8">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-6">
                 <div>
-                  <div className="flex items-center space-x-3 text-purple-500 mb-4">
-                    <Terminal size={18} className="animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em]">Welcome to Dashboard</span>
-                  </div>
-                  <h1 className="text-6xl font-black italic tracking-tighter text-white uppercase leading-[0.8]">
-                    GLYCON<br /><span className="text-purple-600">DASHBOARD</span>
+                  <h1 className="text-4xl font-bold text-white">
+                    Dashboard
                   </h1>
+                  <p className="text-slate-400 mt-1">Welcome back, {user.email?.split('@')[0]}</p>
                 </div>
-                <div className="flex flex-col items-end gap-3 hidden md:flex">
-                  <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
-                    <Users size={14} className="text-purple-400" />
-                    <span className="text-xs font-bold text-white uppercase italic tracking-widest">Total Clients: {userCount ?? 0}</span>
+                <div className="flex flex-col items-end gap-2 hidden md:flex">
+                  <div className="flex items-center space-x-2 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
+                    <Users size={16} className="text-purple-400" />
+                    <span className="text-sm text-white">Users: {userCount ?? 0}</span>
                   </div>
-                  <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
-                    <span className="text-xs font-bold text-white uppercase italic tracking-widest">Live: v{release?.version || '0.0.0'}</span>
+                  <div className="flex items-center space-x-2 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span className="text-sm text-white">v{release?.version || '0.0.0'}</span>
                   </div>
                 </div>
               </div>
@@ -575,169 +536,134 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 {/* Release Card */}
                 <div className="col-span-12 lg:col-span-8 space-y-8">
                   {!discordJoined && (
-                    <div className="bg-indigo-600/20 border border-indigo-500/50 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 animate-in zoom-in duration-500">
+                    <div className="bg-indigo-600/20 border border-indigo-500/50 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                          <MessageSquare className="text-white" />
+                        <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+                          <MessageSquare className="text-white" size={20} />
                         </div>
                         <div>
-                          <h4 className="text-white font-black italic uppercase tracking-widest text-sm">Join the Community</h4>
-                          <p className="text-xs text-indigo-300">Access to loader downloads is locked until you join our Discord server.</p>
+                          <h4 className="text-white font-semibold text-sm">Join the Community</h4>
+                          <p className="text-xs text-indigo-300">Join Discord to unlock downloads</p>
                         </div>
                       </div>
                       <button
                         onClick={handleJoinDiscord}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all whitespace-nowrap shadow-lg shadow-indigo-900/40 active:scale-95"
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-semibold text-sm transition-colors"
                       >
-                        Join Discord Server
+                        Join Discord
                       </button>
                     </div>
                   )}
 
-                  <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-3xl p-10 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-8 opacity-5">
-                      <Cpu size={120} className="text-white" />
+                  <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-2xl p-8 space-y-6">
+                    <div className="inline-flex items-center space-x-2 bg-purple-600/10 text-purple-400 border border-purple-500/20 px-3 py-1 rounded-full text-xs font-semibold">
+                      <CheckCircle2 size={14} />
+                      <span>Latest Release</span>
                     </div>
 
-                    <div className="relative z-10 space-y-6">
-                      <div className="inline-flex items-center space-x-2 bg-purple-600/10 text-purple-400 border border-purple-500/20 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                        <CheckCircle2 size={12} />
-                        <span>Latest Distribution</span>
-                      </div>
-
-                      <div className="space-y-1">
-                        <h3 className="text-4xl font-black italic text-white uppercase tracking-tight">Glycon Loader v{release?.version || '0.0.0'}</h3>
-                        <div className="flex items-center space-x-4 text-slate-500">
-                          <div className="flex items-center space-x-1">
-                            <Calendar size={12} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">{release ? new Date(release.created_at).toLocaleDateString() : '--/--/--'}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Monitor size={12} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Windows x64</span>
-                          </div>
+                    <div className="space-y-2">
+                      <h3 className="text-3xl font-bold text-white">Glycon Loader v{release?.version || '0.0.0'}</h3>
+                      <div className="flex items-center space-x-4 text-slate-400 text-sm">
+                        <div className="flex items-center space-x-1">
+                          <Calendar size={14} />
+                          <span>{release ? new Date(release.created_at).toLocaleDateString() : '--/--/--'}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Monitor size={14} />
+                          <span>Windows x64</span>
                         </div>
                       </div>
+                    </div>
 
-                      <p className="text-slate-400 text-sm leading-relaxed max-w-xl font-medium">
-                        {release?.description || 'Synchronizing with operator identity... please wait for deployment data.'}
-                      </p>
+                    <p className="text-slate-300 text-base leading-relaxed max-w-xl">
+                      {release?.description || 'No release information available.'}
+                    </p>
 
-                      <div className="pt-6 flex flex-wrap gap-4">
-                        {discordJoined ? (
-                          <a
-                            href={release?.download_url || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center space-x-4 bg-white hover:bg-purple-500 hover:text-white text-black px-10 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-white/5 active:scale-95"
-                          >
-                            <span>Verify & Download Loader</span>
-                            <Download size={16} />
-                          </a>
-                        ) : (
-                          <button
-                            onClick={handleJoinDiscord}
-                            className="inline-flex items-center space-x-4 bg-slate-800/50 text-slate-500 px-10 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700/50 cursor-not-allowed grayscale"
-                          >
-                            <span>Join Discord to Unlock</span>
-                            <MessageSquare size={16} />
-                          </button>
-                        )}
-                        <button className="inline-flex items-center space-x-4 bg-slate-800/50 hover:bg-slate-800 text-slate-400 hover:text-white px-8 py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border border-slate-700/50">
-                          <span>View Documentation</span>
-                          <FileText size={16} />
+                    <div className="flex flex-wrap gap-3 pt-4">
+                      {discordJoined ? (
+                        <a
+                          href={release?.download_url || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center space-x-2 bg-white hover:bg-purple-500 hover:text-white text-black px-6 py-3 rounded-lg font-semibold text-sm transition-colors"
+                        >
+                          <span>Download</span>
+                          <Download size={16} />
+                        </a>
+                      ) : (
+                        <button
+                          onClick={handleJoinDiscord}
+                          className="inline-flex items-center space-x-2 bg-slate-800/50 text-slate-500 px-6 py-3 rounded-lg font-semibold text-sm border border-slate-700/50 cursor-not-allowed"
+                        >
+                          <span>Join Discord to Unlock</span>
+                          <MessageSquare size={16} />
                         </button>
-                      </div>
+                      )}
+                      <button className="inline-flex items-center space-x-2 bg-slate-800/50 hover:bg-slate-800 text-slate-400 hover:text-white px-5 py-3 rounded-lg font-semibold text-sm border border-slate-700/50 transition-colors">
+                        <span>Documentation</span>
+                        <FileText size={16} />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 flex items-start space-x-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 flex items-start space-x-4">
                       <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center border border-orange-500/20 shrink-0">
                         <ShieldAlert size={20} className="text-orange-500" />
                       </div>
                       <div>
-                        <h4 className="text-white font-black italic uppercase tracking-widest text-[10px] mb-1">Environmental Note</h4>
-                        <p className="text-[10px] text-slate-500 leading-relaxed font-medium">Execution strictly in Usermode. Apply directory exclusions to prevent false positive heuristic flags.</p>
+                        <h4 className="text-white font-semibold text-sm mb-1">Note</h4>
+                        <p className="text-sm text-slate-400 leading-relaxed">Execution in Usermode. Apply directory exclusions to prevent false positives.</p>
                       </div>
                     </div>
-                    <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 flex items-start space-x-4">
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 flex items-start space-x-4">
                       <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shrink-0">
                         <Globe size={20} className="text-purple-500" />
                       </div>
                       <div>
-                        <h4 className="text-white font-black italic uppercase tracking-widest text-[10px] mb-1">Cloud Authorization</h4>
-                        <p className="text-[10px] text-slate-500 leading-relaxed font-medium">Auto-sync profiles across all authorized machines. One identity, infinite control.</p>
+                        <h4 className="text-white font-semibold text-sm mb-1">Cloud Sync</h4>
+                        <p className="text-sm text-slate-400 leading-relaxed">Auto-sync profiles across all authorized machines.</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Sidebar Terminal */}
+                {/* Changelog */}
                 <div className="col-span-12 lg:col-span-4 flex flex-col">
-                  <div className="flex-1 bg-slate-950/80 backdrop-blur-md border border-slate-800 rounded-3xl p-8 flex flex-col relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-transparent to-purple-500 opacity-20"></div>
-
-                    <div className="flex items-center justify-between mb-6">
-                      <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] flex items-center space-x-2">
-                        <Terminal size={14} className="text-purple-500" />
-                        <span>Deployment_Logs</span>
+                  <div className="flex-1 bg-slate-950/80 backdrop-blur-md border border-slate-800 rounded-xl p-6 flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-sm font-semibold text-slate-300 flex items-center space-x-2">
+                        <Terminal size={16} className="text-purple-500" />
+                        <span>Changelog</span>
                       </h4>
-                      <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar font-mono text-[11px] leading-loose space-y-4">
+                    <div className="flex-1 overflow-y-auto font-mono text-sm leading-relaxed space-y-2">
                       {release?.changelog ? (
                         <div className="text-slate-400 whitespace-pre-wrap">
                           {release.changelog.split('\n').map((line, i) => {
                             let colorClass = 'text-slate-400';
                             const trimmed = line.trim();
-                            if (trimmed.startsWith('[+]') || trimmed.startsWith('+')) colorClass = 'text-green-400/80';
-                            else if (trimmed.startsWith('[-]') || trimmed.startsWith('-')) colorClass = 'text-red-400/80';
-                            else if (trimmed.startsWith('[!]')) colorClass = 'text-amber-400/80';
-                            else if (trimmed.startsWith('[*]')) colorClass = 'text-blue-400/80';
+                            if (trimmed.startsWith('[+]') || trimmed.startsWith('+')) colorClass = 'text-green-400';
+                            else if (trimmed.startsWith('[-]') || trimmed.startsWith('-')) colorClass = 'text-red-400';
+                            else if (trimmed.startsWith('[!]')) colorClass = 'text-amber-400';
+                            else if (trimmed.startsWith('[*]')) colorClass = 'text-blue-400';
 
                             return (
-                              <div key={i} className={`flex items-start space-x-2 ${colorClass}`}>
-                                <span className="text-slate-600 opacity-50">[{i + 1}]</span>
-                                <span>{line}</span>
+                              <div key={i} className={colorClass}>
+                                {line}
                               </div>
                             );
                           })}
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center h-full text-slate-700 italic">
-                          No log data detected...
+                        <div className="flex items-center justify-center h-full text-slate-600 italic">
+                          No changelog available
                         </div>
                       )}
                     </div>
-
-                    <div className="mt-6 pt-4 border-t border-slate-800/50">
-                      <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-700">
-                        <span>Buffer: 1024KB</span>
-                        <span>Stream: Encrypted</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Bottom Specs HUD */}
-              <div className="pt-12 border-t border-slate-800 flex flex-wrap gap-12 items-center text-[10px] font-bold text-slate-600 uppercase tracking-[0.3em]">
-                <div className="flex items-center space-x-3 group cursor-help">
-                  <div className="w-2 h-2 rounded-full bg-purple-500 group-hover:shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-all"></div>
-                  <span className="group-hover:text-slate-400 transition-colors">Distributed x64 Framework</span>
-                </div>
-                <div className="flex items-center space-x-3 group cursor-help">
-                  <div className="w-2 h-2 rounded-full bg-purple-500 group-hover:shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-all"></div>
-                  <span className="group-hover:text-slate-400 transition-colors">Zero Detection</span>
-                </div>
-                <div className="flex items-center space-x-3 group cursor-help">
-                  <div className="w-2 h-2 rounded-full bg-purple-500 group-hover:shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-all"></div>
-                  <span className="group-hover:text-slate-400 transition-colors">Encrypted IO Distribution</span>
-                </div>
-                <div className="flex-1"></div>
-                <div className="text-[9px] font-black opacity-30 italic">Glycon</div>
               </div>
             </div>
           )}
