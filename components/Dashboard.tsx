@@ -66,22 +66,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [rv, setRv] = useState('');
   const [webhook, setWebhook] = useState(localStorage.getItem('glycon_webhook') || 'https://discord.com/api/webhooks/1455467520109838386/PAJVbt-9BFGQQXOFBOXw4Ba4DPrlExXKQHaPs_d437vr5u2e9sQwBIajnD7bS6g87G8a');
   const [discordJson, setDiscordJson] = useState(JSON.stringify({
-    "content": null,
-    "embeds": [
-      {
-        "title": "😎 [Glycon: Update] · {version} 🟦",
-        "description": "@Updates @Glycon\n\n**{date}**\n• Status: **{status}**\n• Compatible with deployed **{roblox-version}**",
-        "color": 2829617,
-        "fields": [
-          {
-            "name": "CHANGELOG",
-            "value": "```ini\n{changelogs}\n\ninstall update from https://glycon.vercel.app\n```"
-          }
-        ]
-      }
-    ],
-    "attachments": []
-  }, null, 2));
+  "content": null,
+  "embeds": [
+    {
+      "title": "😎 [Glycon: Update] · {version} 🟦",
+      "description": "@Updates @Glycon\n\n**{date}**\n• Status: **{status}**\n• Compatible with deployed **{roblox-version}**",
+      "color": 2829617,
+      "fields": [
+        {
+          "name": "CHANGELOG",
+          "value": "```ini\n{changelogs}\n\ninstall update from https://glycon.vercel.app\n```"
+        }
+      ]
+    }
+  ],
+  "username": "changelog",
+  "avatar_url": "https://cdn.discordapp.com/avatars/1455467520109838386/6509094eb7907a4a4311c1dc7be31e72.webp?size=60",
+  "attachments": []
+}, null, 2));
 
   useEffect(() => {
     fetchLatestRelease();
