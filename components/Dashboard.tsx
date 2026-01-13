@@ -75,7 +75,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       "fields": [
         {
           "name": "CHANGELOG",
-          "value": "```ini\n{changelogs}\n\ninstall update from https://glycon.vercel.app\n```"
+          "value": "```ini\n{changelogs}\n\ninstall update from https://glycon.duckdns.org/n```"
         }
       ]
     }
