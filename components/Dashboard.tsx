@@ -66,7 +66,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [rv, setRv] = useState('');
   const [webhook, setWebhook] = useState(localStorage.getItem('glycon_webhook') || 'https://discord.com/api/webhooks/1455467520109838386/PAJVbt-9BFGQQXOFBOXw4Ba4DPrlExXKQHaPs_d437vr5u2e9sQwBIajnD7bS6g87G8a');
   const [discordJson, setDiscordJson] = useState(JSON.stringify({
-  "content": null,
+  "content": "@everyone",
   "embeds": [
     {
       "title": "😎 [Glycon: Update] · {version} 🟦",
