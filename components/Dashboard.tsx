@@ -200,8 +200,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         <div className="w-full max-w-2xl bg-[#0a0a0a] border border-[#1f1f1f] p-8 rounded-2xl animate-in zoom-in-95 duration-300 mb-12">
           <h2 className="text-xl font-bold mb-6 text-purple-400">Admin Control</h2>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <input value={v} onChange={e => setV(e.target.value)} placeholder="Version (e.g. 2.5)" className="bg-[#050505] border border-[#222] p-3 rounded-lg text-sm w-full outline-none focus:border-purple-500" />
+              <input value={rv} onChange={e => setRv(e.target.value)} placeholder="Roblox Version" className="bg-[#050505] border border-[#222] p-3 rounded-lg text-sm w-full outline-none focus:border-purple-500" />
               <select value={status} onChange={e => setStatus(e.target.value)} className="bg-[#050505] border border-[#222] p-3 rounded-lg text-sm w-full outline-none focus:border-purple-500">
                 <option>Undetected</option><option>Patched</option><option>Maintenance</option>
               </select>
