@@ -19,18 +19,18 @@ const HeroModule = () => {
   const outerRef = useRef<THREE.Group>(null!);
   const innerRef = useRef<THREE.Group>(null!);
   const midRef = useRef<THREE.Group>(null!);
-  
+
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
     outerRef.current.rotation.y = t * 0.15;
     outerRef.current.rotation.z = Math.sin(t * 0.3) * 0.1;
-    
+
     midRef.current.rotation.x = t * 0.4;
     midRef.current.rotation.y = -t * 0.2;
 
     innerRef.current.rotation.y = -t * 1.2;
     innerRef.current.rotation.x = Math.cos(t * 0.5) * 0.2;
-    
+
     // Pulsing effect
     const scale = 1.2 + Math.sin(t * 4) * 0.08;
     innerRef.current.scale.set(scale, scale, scale);
@@ -42,11 +42,11 @@ const HeroModule = () => {
         {/* Inner Core */}
         <Group ref={innerRef}>
           <Icosahedron args={[0.8, 0]}>
-            <MeshStandardMaterial 
-              color="#ffffff" 
-              emissive="#a855f7" 
-              emissiveIntensity={25} 
-              metalness={1} 
+            <MeshStandardMaterial
+              color="#ffffff"
+              emissive="#a855f7"
+              emissiveIntensity={25}
+              metalness={1}
               roughness={0}
             />
           </Icosahedron>
@@ -55,27 +55,27 @@ const HeroModule = () => {
 
         {/* Middle Shell - Geometric cage */}
         <Group ref={midRef}>
-           <Torus args={[1.8, 0.015, 16, 100]}>
-              <MeshStandardMaterial color="#a855f7" emissive="#a855f7" emissiveIntensity={5} />
-           </Torus>
-           <Torus args={[1.8, 0.015, 16, 100]} rotation={[Math.PI/2, 0, 0]}>
-              <MeshStandardMaterial color="#a855f7" emissive="#a855f7" emissiveIntensity={5} />
-           </Torus>
+          <Torus args={[1.8, 0.015, 16, 100]}>
+            <MeshStandardMaterial color="#a855f7" emissive="#a855f7" emissiveIntensity={5} />
+          </Torus>
+          <Torus args={[1.8, 0.015, 16, 100]} rotation={[Math.PI / 2, 0, 0]}>
+            <MeshStandardMaterial color="#a855f7" emissive="#a855f7" emissiveIntensity={5} />
+          </Torus>
         </Group>
 
         {/* Outer Shell - Large Wireframe */}
         <Group ref={outerRef}>
           <Octahedron args={[3, 0]}>
-            <MeshStandardMaterial 
-              color="#7c3aed" 
-              wireframe 
-              transparent 
-              opacity={0.3} 
-              emissive="#7c3aed" 
-              emissiveIntensity={1} 
+            <MeshStandardMaterial
+              color="#7c3aed"
+              wireframe
+              transparent
+              opacity={0.3}
+              emissive="#7c3aed"
+              emissiveIntensity={1}
             />
           </Octahedron>
-          
+
           {/* Satellite points */}
           {[...Array(8)].map((_, i) => (
             <Mesh key={i} position={[
@@ -169,12 +169,12 @@ const PhysicsModule = () => {
   return (
     <Group ref={groupRef}>
       {[...Array(15)].map((_, i) => (
-        <Box 
-          key={i} 
-          args={[0.5, 0.5, 0.5]} 
+        <Box
+          key={i}
+          args={[0.5, 0.5, 0.5]}
           position={[
-            Math.cos(i * 1.5) * 3, 
-            Math.sin(i * 1.8) * 2, 
+            Math.cos(i * 1.5) * 3,
+            Math.sin(i * 1.8) * 2,
             Math.sin(i * 1.2) * 2
           ]}
         >
@@ -206,7 +206,7 @@ const Scene = () => {
   useFrame((state) => {
     const targetY = scroll.offset * SECTION_HEIGHT * 6;
     worldRef.current.position.y = THREE.MathUtils.lerp(worldRef.current.position.y, targetY, 0.1);
-    
+
     // Grid follows scroll but also tiles for a "moving floor" effect
     if (gridRef.current) {
       gridRef.current.position.y = -SECTION_HEIGHT * 0.5 + targetY;
@@ -229,12 +229,12 @@ const Scene = () => {
 
       {/* Reactive Scanner Grid Floor */}
       <Group ref={gridRef} position={[0, -5, -2]}>
-        <Grid 
-          infiniteGrid 
-          fadeDistance={30} 
-          fadeStrength={5} 
-          sectionSize={1.5} 
-          sectionThickness={1.5} 
+        <Grid
+          infiniteGrid
+          fadeDistance={30}
+          fadeStrength={5}
+          sectionSize={1.5}
+          sectionThickness={1.5}
           sectionColor="#7c3aed"
           cellColor="#1e1b4b"
           cellSize={0.5}
@@ -267,7 +267,7 @@ const Scene = () => {
         <Group position={[0, -SECTION_HEIGHT * 5, 0]}>
           <WorldModule />
         </Group>
-        
+
         <Group position={[5, -SECTION_HEIGHT * 6, 0]}>
           <HeroModule />
         </Group>

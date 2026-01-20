@@ -1,169 +1,184 @@
-import React from 'react';
-import { Canvas } from '@react-three/fiber';
-import { ScrollControls, Scroll } from '@react-three/drei';
-import { Target, Activity, Eye, Zap, ChevronDown } from 'lucide-react';
-import Scene from './Visual3D';
-import Auth from './Auth';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import { Download, MessageCircle, Mail, X, Sparkles } from 'lucide-react';
+import Auth from './Auth';
 
-const LOGO_URL = "https://media.discordapp.net/attachments/1324825706303197357/1453312744907477025/fav.png?ex=69504a37&is=694ef8b7&hm=75495ec0b3d3e9caf20d93f015613558ee165ea98d72e4ae1049f0dcba0505cf&=&format=webp&quality=lossless&width=375&height=375";
+const LOGO_URL = "https://media.discordapp.net/attachments/1453322194254954550/1463148133469913233/re.png?ex=6970c662&is=696f74e2&hm=d382eb4c31cf00871050d36e014ce27c69b489dd1aff09e0a7b23346a65189a7&=&format=webp&quality=lossless&width=450&height=450";
 
-interface SectionProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  items: string[];
-  align?: 'left' | 'right';
+interface WaterButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary';
+  children: React.ReactNode;
 }
 
-const FeatureSection: React.FC<SectionProps> = ({ icon, title, description, items, align = 'left' }) => (
-  <div className={`h-screen flex items-center ${align === 'right' ? 'justify-end' : 'justify-start'} px-8 md:px-24`}>
-    <div className="max-w-xl w-full bg-white/5 backdrop-blur-xl p-10 rounded-3xl border border-white/10 hover:border-purple-500/30 transition-all duration-300">
-      <div className="space-y-6">
-        <div className="inline-flex items-center space-x-2 text-purple-400">
-          {React.cloneElement(icon as React.ReactElement<any>, { size: 24 })}
-        </div>
-        <h2 className="text-5xl font-bold text-white">{title}</h2>
-        <p className="text-slate-300 text-lg leading-relaxed">{description}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-6 border-t border-white/10">
-          {items.map((item, idx) => (
-            <div key={idx} className="flex items-center space-x-2 text-slate-400">
-              <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-              <span className="text-sm">{item}</span>
-            </div>
-          ))}
-        </div>
+const WaterButton: React.FC<WaterButtonProps> = ({ variant = 'primary', children, className, ...props }) => {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [ripples, setRipples] = useState<{ x: number; y: number; id: number }[]>([]);
+
+  useEffect(() => {
+    if (ripples.length > 0) {
+      const timer = setTimeout(() => {
+        setRipples((prev) => prev.slice(1));
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [ripples]);
+
+  const createRipple = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const button = buttonRef.current;
+    if (!button) return;
+
+    const rect = button.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    setRipples((prev) => [...prev, { x, y, id: Date.now() }]);
+    props.onClick?.(e);
+  };
+
+  const baseStyles = "relative overflow-hidden transition-all duration-300 font-bold tracking-widest uppercase text-[11px] rounded-xl flex items-center justify-center gap-2";
+  const variants = {
+    primary: "bg-white text-black hover:scale-[1.02] shadow-[0_0_20px_rgba(255,255,255,0.1)]",
+    secondary: "bg-[#0a0a0a] border border-[#1f1f1f] text-slate-400 hover:text-white hover:border-slate-500/50"
+  };
+
+  return (
+    <button
+      ref={buttonRef}
+      className={`${baseStyles} ${variants[variant]} ${className || ''}`}
+      onClick={createRipple}
+      {...props}
+    >
+      <div className="relative z-10 flex items-center gap-2 pointer-events-none">
+        {children}
       </div>
-    </div>
-  </div>
-);
+      {ripples.map((ripple) => (
+        <span
+          key={ripple.id}
+          className="absolute rounded-full bg-purple-500/30 animate-ripple pointer-events-none"
+          style={{
+            left: ripple.x,
+            top: ripple.y,
+            transform: 'translate(-50%, -50%)',
+            width: '300px',
+            height: '300px',
+          }}
+        />
+      ))}
+    </button>
+  );
+};
 
 const LandingPage: React.FC<{ user: SupabaseUser | null, onLogout: () => void }> = ({ user, onLogout }) => {
+  const [showAuth, setShowAuth] = useState(false);
+
   return (
-    <div className="h-screen w-full bg-slate-950 overflow-hidden">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 flex items-center justify-between px-8 md:px-16 py-6 bg-slate-950/80 backdrop-blur-lg border-b border-white/5">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 overflow-hidden rounded-xl flex items-center justify-center">
-            <img src={LOGO_URL} alt="Glycon Logo" className="w-full h-full object-cover" />
-          </div>
-          <span className="text-xl font-bold text-white">Glycon</span>
-        </div>
-        <div className="flex items-center space-x-4 text-sm text-slate-400">
-          <span>Status: Active</span>
-        </div>
-      </nav>
+    <div className="min-h-screen w-full bg-[#050505] text-[#ededed] font-sans selection:bg-purple-500/30 selection:text-purple-200 flex flex-col items-center justify-center relative overflow-hidden">
 
-      <Canvas shadows camera={{ position: [0, 0, 10], fov: 45 }}>
-        <ScrollControls pages={7} damping={0.25}>
-          <Scene />
-          
-          <Scroll html>
-            <div className="w-screen">
-              {/* HERO */}
-              <section className="h-screen flex items-center justify-start px-8 md:px-24 relative overflow-hidden pt-20">
-                <div className="absolute left-0 top-0 h-full w-[60%] bg-gradient-to-r from-slate-950 via-slate-950/95 to-transparent pointer-events-none z-0" />
-                
-                <div className="relative z-10 w-full lg:w-2/3 space-y-8">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    <span>Active</span>
-                  </div>
-                  
-                  <h1 className="text-7xl md:text-9xl font-bold text-white leading-tight">
-                    Glycon
-                  </h1>
-                  
-                  <p className="text-xl md:text-2xl text-slate-300 max-w-2xl leading-relaxed">
-                    The only non-pasted external. Always undetected and always untouchable.
-                  </p>
-                  
-                  <div className="flex items-center gap-8 pt-4">
-                    <div className="flex flex-col">
-                      <span className="text-2xl font-semibold text-white">Free</span>
-                      <span className="text-sm text-slate-400">Price</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-2xl font-semibold text-white">Undetected</span>
-                      <span className="text-sm text-slate-400">Status</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-2xl font-semibold text-white">99%</span>
-                      <span className="text-sm text-slate-400">Stability</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-slate-400 pt-8">
-                    <span className="text-sm">Scroll to explore</span>
-                    <ChevronDown className="animate-bounce" size={20} />
-                  </div>
-                </div>
-              </section>
+      {/* Background Ambience */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-[-20%] left-[20%] w-[600px] h-[600px] bg-purple-900/10 blur-[120px] rounded-full mix-blend-screen animate-pulse-slow"></div>
+        <div className="absolute bottom-[-10%] right-[20%] w-[500px] h-[500px] bg-indigo-900/5 blur-[100px] rounded-full mix-blend-screen animate-pulse-slow delay-1000"></div>
+      </div>
 
-              {/* Feature Sections - More Asymmetric and Premium */}
-              <FeatureSection 
-                icon={<Target />}
-                title="Aim Engine"
-                description="Hyper-precise vector tracing using native GDI rendering for near-zero performance impact and absolute smoothness."
-                items={["Smoothness v3", "RCS Compensation", "FOV Boundary", "Hitbox Filter", "Target Lock"]}
-                align="right"
-              />
+      <main className="relative z-10 flex flex-col items-center max-w-2xl w-full px-6 animate-in fade-in zoom-in duration-700">
 
-              <FeatureSection 
-                icon={<Activity />}
-                title="Intelligence"
-                description="Advanced behavioral resolvers that adapt to target movement patterns in real-time, predicting positions up to 500ms ahead."
-                items={["Prediction Suite", "Velocity Offset", "Ping Adjuster", "Netcode Bypass", "Data Logs"]}
-                align="left"
-              />
-
-              <FeatureSection 
-                icon={<Eye />}
-                title="Tactical View"
-                description="High-refresh external overlay that projects target data directly into your field of view without touching game memory."
-                items={["Skeleton Overlay", "Health Bar 2D", "Radar 3D", "Tracer Lines", "Item Filter"]}
-                align="right"
-              />
-
-              <FeatureSection 
-                icon={<Zap />}
-                title="Physics"
-                description="Manipulate local character states to achieve impossible movement. Flight, speed, and clipping built for usermode reliability."
-                items={["Infinite Flight", "Phase Shift", "Speed Multiplier", "Gravity Null", "Collision Byp"]}
-                align="left"
-              />
-
-              {/* AUTH */}
-              <section className="min-h-screen flex items-center justify-center bg-slate-950 relative py-32">
-                <div className="w-full max-w-5xl px-8 flex flex-col lg:flex-row items-center gap-16">
-                    <div className="lg:w-1/2 space-y-6 text-center lg:text-left">
-                        <h2 className="text-5xl md:text-6xl font-bold text-white">
-                          Get Started
-                        </h2>
-                        <p className="text-slate-400 text-lg max-w-md mx-auto lg:mx-0">
-                          Register a new account to download Glycon and stay connected, or login to your existing account.
-                        </p>
-                        <p className="text-sm text-slate-500">
-                          Need an access key? <a href="https://discord.gg/vC8fnP6vre" target="_blank" className="text-purple-400 hover:text-purple-300">Join our Discord</a>
-                        </p>
-                    </div>
-                    <div className="lg:w-1/2 w-full">
-                      <Auth />
-                    </div>
-                </div>
-              </section>
-
-              <footer className="py-16 bg-slate-900/50 text-center border-t border-white/5">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="text-sm text-slate-500">
-                    © 2025 Glycon. All rights reserved.
-                  </div>
-                </div>
-              </footer>
+        {/* Status */}
+        <div className="mb-10 animate-fade-in-down">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/5 backdrop-blur-md shadow-lg shadow-purple-900/10">
+            <div className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </div>
-          </Scroll>
-        </ScrollControls>
-      </Canvas>
+            <span className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase">version-1588a9c58c674e38</span>
+          </div>
+        </div>
+
+        {/* Logo */}
+        <div className="mb-8 relative group cursor-pointer hover:scale-105 transition-transform duration-500">
+          <div className="absolute inset-0 bg-purple-500/20 blur-[60px] rounded-full opacity-60 animate-pulse"></div>
+          <img
+            src={LOGO_URL}
+            alt="Glycon"
+            className="relative w-36 h-36 object-contain drop-shadow-2xl"
+          />
+        </div>
+
+        {/* Headlines */}
+        <div className="text-center mb-12 space-y-4">
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-white drop-shadow-lg">
+            GLYCON
+          </h1>
+          <p className="text-slate-400 text-lg md:text-xl font-light tracking-wide max-w-lg mx-auto leading-relaxed">
+            The premium external solution. <br />
+            <span className="text-slate-500 text-sm font-mono tracking-widest uppercase mt-2 block">The only utility that you'll ever need</span>
+          </p>
+        </div>
+
+        {/* Interaction Area */}
+        <div className="w-full max-w-xs space-y-4">
+
+          <WaterButton
+            className="w-full h-14"
+            onClick={() => setShowAuth(true)}
+          >
+            <Download size={18} />
+            DOWNLOAD CLIENT
+          </WaterButton>
+
+          <div className="grid grid-cols-2 gap-4">
+            <a href="https://discord.gg/vC8fnP6vre" target="_blank" rel="noreferrer" className="block">
+              <WaterButton variant="secondary" className="w-full h-12">
+                <MessageCircle size={14} />
+                DISCORD
+              </WaterButton>
+            </a>
+
+            <a href="#contact" className="block">
+              <WaterButton variant="secondary" className="w-full h-12">
+                <Mail size={14} />
+                CONTACT
+              </WaterButton>
+            </a>
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="mt-16 flex items-center gap-3 text-[10px] text-slate-700 font-mono tracking-[0.2em] uppercase opacity-60">
+          <Sparkles size={10} />
+          <span>Copyright @ Glycon 2023</span>
+        </div>
+
+      </main>
+
+      {/* Auth Modal */}
+      {showAuth && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg animate-in fade-in duration-300">
+          <div className="relative w-full max-w-sm">
+            <button
+              onClick={() => setShowAuth(false)}
+              className="absolute -top-12 right-0 text-slate-500 hover:text-white transition-colors flex items-center gap-2 text-xs font-mono uppercase tracking-widest"
+            >
+              Close <X size={14} />
+            </button>
+            <div className="bg-[#050505] border border-[#1f1f1f] rounded-3xl p-1 shadow-2xl shadow-purple-900/20 ring-1 ring-white/5">
+              <Auth />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes ripple {
+          0% { transform: translate(-50%, -50%) scale(0); opacity: 0.6; }
+          100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+        }
+        .animate-ripple {
+          animation: ripple 0.8s linear;
+        }
+        .animate-pulse-slow { animation: pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+      `}</style>
     </div>
   );
 };

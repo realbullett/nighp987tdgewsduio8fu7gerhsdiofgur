@@ -3,14 +3,20 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
+import LoadingScreen from './components/LoadingScreen';
 import { User } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showIntro, setShowIntro] = useState(true);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+  };
+
+  const handleIntroComplete = () => {
+    setShowIntro(false);
   };
 
   useEffect(() => {
@@ -34,8 +40,13 @@ const App: React.FC = () => {
     );
   }
 
+  // Show intro animation for non-logged in users
+  if (showIntro && !user) {
+    return <LoadingScreen onComplete={handleIntroComplete} />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen">
       {user ? (
         <Dashboard user={user} onLogout={handleLogout} />
       ) : (
