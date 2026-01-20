@@ -142,10 +142,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     if (!webhook) return alert("Webhook URL needed");
     localStorage.setItem('glycon_webhook', webhook);
     try {
+      // Escape special characters in changelog for JSON
+      const escapedLog = log
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
+
+      const escapedDesc = desc
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
+
       const payload = JSON.parse(discordJson
         .replace(/{version}/g, v)
         .replace(/{status}/g, status)
-        .replace(/{changelogs}/g, log)
+        .replace(/{changelogs}/g, escapedLog)
         .replace(/{date}/g, new Date().toLocaleDateString()));
 
       await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
