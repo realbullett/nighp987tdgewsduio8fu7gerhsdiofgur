@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Globe, Star, Shield, ChevronRight } from 'lucide-react';
 
-const LOGO_URL = "https://media.discordapp.net/attachments/1453322194254954550/1463148133469913233/re.png?ex=6970c662&is=696f74e2&hm=d382eb4c31cf00871050d36e014ce27c69b489dd1aff09e0a7b23346a65189a7&=&format=webp&quality=lossless&width=450&height=450";
+const LOGO_URL = "https://64.media.tumblr.com/7ee65927e0b5b02e9cc7bf3b203621b0/27a3cd586cd5f69d-74/s500x750/51363d03483f52995b94f2eaff0aee0e00dff5ba.pnj";
 
 interface LoadingScreenProps {
     onComplete: () => void;
