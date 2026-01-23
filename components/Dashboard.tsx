@@ -11,7 +11,8 @@ import {
   MessageSquare,
   Upload,
   Link,
-  Edit3
+  Edit3,
+  Users
 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { User } from '@supabase/supabase-js';
@@ -38,6 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const isAdmin = user.email === 'act@glycon.internal' || user.email?.startsWith('act@');
 
   const [release, setRelease] = useState<Release | null>(null);
+  const [userCount, setUserCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [discordJoined, setDiscordJoined] = useState<boolean>(() => {
@@ -68,7 +70,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   useEffect(() => {
     fetchLatestRelease();
+    fetchUserCount();
   }, []);
+
+  const fetchUserCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      if (!error) {
+        setUserCount(count);
+      }
+    } catch (err) {
+      console.warn("Could not fetch user count:", err);
+    }
+  };
 
   const handleJoinDiscord = () => {
     window.open(DISCORD_URL, '_blank');
@@ -186,6 +202,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               {isEditing ? '[CLOSE ADMIN]' : '[ADMIN]'}
             </button>
           )}
+          <div className="flex items-center gap-2 bg-[#0a0a0a] border border-[#1f1f1f] px-4 py-2 rounded-full hidden md:flex">
+            <Users size={14} className="text-purple-400" />
+            <span className="text-xs font-mono text-slate-400">Users: {userCount ?? 0}</span>
+          </div>
           <div className="flex items-center gap-2 bg-[#0a0a0a] border border-[#1f1f1f] px-4 py-2 rounded-full">
             <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]"></div>
             <span className="text-xs font-mono text-slate-400">{user.email?.split('@')[0]}</span>
