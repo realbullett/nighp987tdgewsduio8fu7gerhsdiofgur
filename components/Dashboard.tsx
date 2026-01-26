@@ -255,7 +255,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               Glycon v{release?.version || '1.0'}
             </h1>
             <p className="text-slate-400 max-w-md mx-auto leading-relaxed">
-              {release?.description || "Ready for injection. Please follow safety protocols."}
+              {release?.description || "There's no new release yet, please wait!"}
             </p>
           </div>
 
@@ -282,7 +282,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
           <div className="pt-12 border-t border-[#1f1f1f] text-left">
             <div className="flex items-center gap-2 text-slate-500 mb-6">
-              <Terminal size={16} />
               <span className="text-xs font-mono uppercase tracking-widest">Latest Changelog</span>
             </div>
             <div className="font-mono text-sm text-slate-400 space-y-2 bg-[#0a0a0a] p-6 rounded-xl border border-[#1f1f1f]">

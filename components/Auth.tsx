@@ -1,18 +1,65 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { AuthView } from '../types';
-import { ArrowRight, Lock, User, Key, Loader2 } from 'lucide-react';
-
-const ACCESS_KEY_REQUIRED = 'AbGt5J3GfA6Yr5C';
+import { ArrowRight, Lock, User, Loader2 } from 'lucide-react';
 
 const Auth: React.FC = () => {
   const [view, setView] = useState<AuthView>(AuthView.LOGIN);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [accessKey, setAccessKey] = useState('');
+  const [captchaVerified, setCaptchaVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const recaptchaRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<number | null>(null);
+
+  // Initialize reCAPTCHA explicitly when view changes to REGISTER
+  useEffect(() => {
+    if (view === AuthView.REGISTER) {
+      const loadCaptcha = () => {
+        // Ensure grecaptcha enterprise is available
+        if (window.grecaptcha && window.grecaptcha.enterprise) {
+          window.grecaptcha.enterprise.ready(() => {
+            // Check if element exists and hasn't been rendered yet
+            if (recaptchaRef.current && widgetIdRef.current === null) {
+              try {
+                // Clear any potential leftover content
+                recaptchaRef.current.innerHTML = '';
+
+                const widgetId = window.grecaptcha.enterprise.render(recaptchaRef.current, {
+                  'sitekey': '6Lcme1YsAAAAAD0NoH3RdLcTeJn2f0O6oawNy12j',
+                  'action': 'SIGNUP',
+                  'callback': (token: string) => {
+                    setCaptchaVerified(true);
+                    // NOTE: To fully secure this, you must send this 'token' to your backend 
+                    // and create an assessment using the Google Cloud API.
+                    // For this purely client-side showcase, we trigger the verified state on callback.
+                  },
+                  'expired-callback': () => {
+                    setCaptchaVerified(false);
+                  },
+                  'theme': 'dark'
+                });
+                widgetIdRef.current = widgetId;
+              } catch (e) {
+                console.error("reCAPTCHA render error:", e);
+              }
+            }
+          });
+        } else {
+          // Retry if script isn't loaded yet
+          setTimeout(loadCaptcha, 100);
+        }
+      };
+
+      loadCaptcha();
+    } else {
+      // Reset widget ID if we switch views so we can render again if needed
+      widgetIdRef.current = null;
+    }
+  }, [view]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,11 +68,17 @@ const Auth: React.FC = () => {
 
     try {
       if (view === AuthView.REGISTER) {
-        if (accessKey !== ACCESS_KEY_REQUIRED) {
-          throw new Error('Invalid Access Key.');
+        if (!captchaVerified) {
+          throw new Error('Please complete the reCAPTCHA verification.');
         }
+
         const effectiveEmail = email.includes('@') ? email : `${email.toLowerCase().replace(/\s/g, '')}@glycon.internal`;
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email: effectiveEmail, password });
+
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: effectiveEmail,
+          password
+        });
+
         if (signUpError) throw signUpError;
 
         if (signUpData.user) {
@@ -55,7 +108,7 @@ const Auth: React.FC = () => {
           {view === AuthView.LOGIN ? 'Welcome Back' : 'Join Glycon'}
         </h2>
         <p className="text-slate-500 text-sm">
-          {view === AuthView.LOGIN ? 'Authenticate to access the loader' : 'Enter credentials to register'}
+          {view === AuthView.LOGIN ? 'Authenticate to access the loader' : 'Complete verification to register'}
         </p>
       </div>
 
@@ -86,16 +139,8 @@ const Auth: React.FC = () => {
           </div>
 
           {view === AuthView.REGISTER && (
-            <div className="group relative animate-in fade-in slide-in-from-top-2">
-              <Key className="absolute left-0 top-3 text-slate-500 group-focus-within:text-purple-400 transition-colors" size={18} />
-              <input
-                type="text"
-                required
-                value={accessKey}
-                onChange={(e) => setAccessKey(e.target.value)}
-                className="w-full bg-transparent border-b border-slate-800 py-3 pl-8 text-white placeholder-slate-600 focus:outline-none focus:border-purple-500 transition-colors bg-gradient-to-r from-transparent to-transparent focus:to-purple-900/5"
-                placeholder="Access Key (From Discord)"
-              />
+            <div className="group relative animate-in fade-in slide-in-from-top-2 flex justify-center min-h-[78px]">
+              <div ref={recaptchaRef}></div>
             </div>
           )}
         </div>
@@ -133,5 +178,11 @@ const Auth: React.FC = () => {
     </div>
   );
 };
+
+declare global {
+  interface Window {
+    grecaptcha: any;
+  }
+}
 
 export default Auth;
