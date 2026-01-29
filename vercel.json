@@ -1,6 +1,10 @@
 {
     "rewrites": [
         {
+            "source": "/offsets.json",
+            "destination": "/api/offsets"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }

@@ -4,7 +4,6 @@ import { supabase } from './supabase';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
 import LoadingScreen from './components/LoadingScreen';
-import OffsetsPage from './components/OffsetsPage';
 import { User } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
@@ -32,12 +31,6 @@ const App: React.FC = () => {
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const isOffsetsPage = window.location.pathname === '/offsets.json';
-
-  if (isOffsetsPage) {
-    return <OffsetsPage />;
-  }
 
   if (loading) {
     return (
