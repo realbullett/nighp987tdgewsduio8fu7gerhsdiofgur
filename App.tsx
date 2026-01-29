@@ -33,7 +33,7 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const isOffsetsPage = window.location.pathname === '/offsets';
+  const isOffsetsPage = window.location.pathname === '/offsets.json';
 
   if (isOffsetsPage) {
     return <OffsetsPage />;

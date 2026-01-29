@@ -254,7 +254,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   const { error } = await supabase.from('offsets').insert({ content });
                   if (error) alert("Error saving offsets: " + error.message);
                   else {
-                    const link = window.location.origin + '/offsets';
+                    const link = window.location.origin + '/offsets.json';
                     const elem = document.getElementById('offsets-link-display');
                     if (elem) elem.innerHTML = `<a href="${link}" target="_blank" class="text-purple-400 underline">${link}</a>`;
                     alert("Offsets updated successfully!");
