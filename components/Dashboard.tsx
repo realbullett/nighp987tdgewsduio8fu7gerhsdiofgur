@@ -247,81 +247,87 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 }}
                 id="offset-input"
               />
-              <button
-                onClick={async () => {
-                  const content = (document.getElementById('offset-input') as HTMLTextAreaElement).value;
-                  if (!content) return alert("Please enter content");
-                  const { error } = await supabase.from('offsets').insert({ content });
-                  if (error) alert("Error saving offsets: " + error.message);
-                  else alert("Offsets updated successfully!");
-                }}
-                className="bg-purple-900/50 hover:bg-purple-900/80 text-purple-200 px-4 py-2 rounded-lg text-xs font-bold w-full"
+              onClick={async () => {
+                const content = (document.getElementById('offset-input') as HTMLTextAreaElement).value;
+                if (!content) return alert("Please enter content");
+                const { error } = await supabase.from('offsets').insert({ content });
+                if (error) alert("Error saving offsets: " + error.message);
+                else {
+                  const link = window.location.origin + '/offsets';
+                  const elem = document.getElementById('offsets-link-display');
+                  if (elem) elem.innerHTML = `<a href="${link}" target="_blank" class="text-purple-400 underline">${link}</a>`;
+                  alert("Offsets updated successfully!");
+                }
+              }}
+              className="bg-purple-900/50 hover:bg-purple-900/80 text-purple-200 px-4 py-2 rounded-lg text-xs font-bold w-full"
               >
-                Update Offsets
-              </button>
-            </div>
+              Update Offsets
+            </button>
+            <div id="offsets-link-display" className="mt-2 text-xs text-center font-mono"></div>
+          </div>
 
-            <div className="pt-4 border-t border-[#1f1f1f]">
-              <input value={webhook} onChange={e => setWebhook(e.target.value)} placeholder="Discord Webhook" type="password" className="bg-[#050505] border border-[#222] p-2 rounded-lg text-xs w-full mb-2" />
-              <button onClick={handleDiscordPublish} className="text-xs text-purple-400 hover:text-white">Run Webhook Test</button>
-            </div>
+          <div className="pt-4 border-t border-[#1f1f1f]">
+            <input value={webhook} onChange={e => setWebhook(e.target.value)} placeholder="Discord Webhook" type="password" className="bg-[#050505] border border-[#222] p-2 rounded-lg text-xs w-full mb-2" />
+            <button onClick={handleDiscordPublish} className="text-xs text-purple-400 hover:text-white">Run Webhook Test</button>
           </div>
         </div>
-      ) : (
-        <div className="w-full max-w-2xl text-center space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
-
-          <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-900/10 border border-purple-500/20 text-purple-400 text-xs font-semibold tracking-wider">
-              <ShieldCheck size={12} />
-              {release?.status || 'UNDETECTED'}
-            </div>
-            <h1 className="text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-500">
-              Glycon v{release?.version || '1.0'}
-            </h1>
-            <p className="text-slate-400 max-w-md mx-auto leading-relaxed">
-              {release?.description || "There's no new release yet, please wait!"}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-center gap-4">
-            {discordJoined ? (
-              <a
-                href={release?.download_url || '#'}
-                target="_blank"
-                className="group relative px-8 py-4 bg-white text-black rounded-lg font-bold hover:bg-purple-500 hover:text-white transition-all duration-300 flex items-center gap-3 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(168,85,247,0.4)]"
-              >
-                <Download size={18} />
-                <span>Download Loader</span>
-              </a>
-            ) : (
-              <button
-                onClick={handleJoinDiscord}
-                className="px-8 py-4 bg-[#0a0a0a] border border-[#1f1f1f] text-slate-400 rounded-lg font-bold hover:text-white hover:border-purple-500/50 transition-all flex items-center gap-3"
-              >
-                <MessageSquare size={18} />
-                <span>Unlock Download</span>
-              </button>
-            )}
-          </div>
-
-          <div className="pt-12 border-t border-[#1f1f1f] text-left">
-            <div className="flex items-center gap-2 text-slate-500 mb-6">
-              <span className="text-xs font-mono uppercase tracking-widest">Latest Changelog</span>
-            </div>
-            <div className="font-mono text-sm text-slate-400 space-y-2 bg-[#0a0a0a] p-6 rounded-xl border border-[#1f1f1f]">
-              {release?.changelog ? release.changelog.split('\n').map((line, i) => (
-                <div key={i} className={line.includes('+') ? 'text-green-400' : line.includes('-') ? 'text-red-400' : 'text-slate-400'}>
-                  {line}
-                </div>
-              )) : (
-                <span className="text-slate-600 italic">No logs available...</span>
-              )}
-            </div>
-          </div>
-
         </div>
-      )}
+  ) : (
+    <div className="w-full max-w-2xl text-center space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+
+      <div className="space-y-4">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-900/10 border border-purple-500/20 text-purple-400 text-xs font-semibold tracking-wider">
+          <ShieldCheck size={12} />
+          {release?.status || 'UNDETECTED'}
+        </div>
+        <h1 className="text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-500">
+          Glycon v{release?.version || '1.0'}
+        </h1>
+        <p className="text-slate-400 max-w-md mx-auto leading-relaxed">
+          {release?.description || "There's no new release yet, please wait!"}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-center gap-4">
+        {discordJoined ? (
+          <a
+            href={release?.download_url || '#'}
+            target="_blank"
+            className="group relative px-8 py-4 bg-white text-black rounded-lg font-bold hover:bg-purple-500 hover:text-white transition-all duration-300 flex items-center gap-3 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(168,85,247,0.4)]"
+          >
+            <Download size={18} />
+            <span>Download Loader</span>
+          </a>
+        ) : (
+          <button
+            onClick={handleJoinDiscord}
+            className="px-8 py-4 bg-[#0a0a0a] border border-[#1f1f1f] text-slate-400 rounded-lg font-bold hover:text-white hover:border-purple-500/50 transition-all flex items-center gap-3"
+          >
+            <MessageSquare size={18} />
+            <span>Unlock Download</span>
+          </button>
+        )}
+      </div>
+
+      <div className="pt-12 border-t border-[#1f1f1f] text-left">
+        <div className="flex items-center gap-2 text-slate-500 mb-6">
+          <span className="text-xs font-mono uppercase tracking-widest">Latest Changelog</span>
+        </div>
+        <div className="font-mono text-sm text-slate-400 space-y-2 bg-[#0a0a0a] p-6 rounded-xl border border-[#1f1f1f]">
+          {release?.changelog ? release.changelog.split('\n').map((line, i) => (
+            <div key={i} className={line.includes('+') ? 'text-green-400' : line.includes('-') ? 'text-red-400' : 'text-slate-400'}>
+              {line}
+            </div>
+          )) : (
+            <span className="text-slate-600 italic">No logs available...</span>
+          )}
+        </div>
+      </div>
+
     </div>
+  )
+}
+    </div >
   );
 };
 
