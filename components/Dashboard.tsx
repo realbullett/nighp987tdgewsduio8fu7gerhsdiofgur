@@ -238,6 +238,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             </div>
 
             <div className="pt-4 border-t border-[#1f1f1f]">
+              <h3 className="text-sm font-bold text-purple-400 mb-2">Offset Updater</h3>
+              <textarea
+                placeholder="Paste offsets here..."
+                className="font-mono bg-[#050505] border border-[#222] p-3 rounded-lg text-sm w-full h-32 outline-none focus:border-purple-500 mb-2"
+                onChange={async (e) => {
+                  // This is just a local state for the textarea, we need a button to save
+                }}
+                id="offset-input"
+              />
+              <button
+                onClick={async () => {
+                  const content = (document.getElementById('offset-input') as HTMLTextAreaElement).value;
+                  if (!content) return alert("Please enter content");
+                  const { error } = await supabase.from('offsets').insert({ content });
+                  if (error) alert("Error saving offsets: " + error.message);
+                  else alert("Offsets updated successfully!");
+                }}
+                className="bg-purple-900/50 hover:bg-purple-900/80 text-purple-200 px-4 py-2 rounded-lg text-xs font-bold w-full"
+              >
+                Update Offsets
+              </button>
+            </div>
+
+            <div className="pt-4 border-t border-[#1f1f1f]">
               <input value={webhook} onChange={e => setWebhook(e.target.value)} placeholder="Discord Webhook" type="password" className="bg-[#050505] border border-[#222] p-2 rounded-lg text-xs w-full mb-2" />
               <button onClick={handleDiscordPublish} className="text-xs text-purple-400 hover:text-white">Run Webhook Test</button>
             </div>
