@@ -1,4 +1,10 @@
 {
+    "crons": [
+        {
+            "path": "/api/offset-sync",
+            "schedule": "* * * * *"
+        }
+    ],
     "rewrites": [
         {
             "source": "/offsets.json",

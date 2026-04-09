@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
 import LoadingScreen from './components/LoadingScreen';
+import OffsetSyncWorker from './components/OffsetSyncWorker';
 import { User } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
@@ -47,6 +48,9 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen">
+      {/* Background offset sync worker - runs every 10 seconds */}
+      <OffsetSyncWorker />
+      
       {user ? (
         <Dashboard user={user} onLogout={handleLogout} />
       ) : (

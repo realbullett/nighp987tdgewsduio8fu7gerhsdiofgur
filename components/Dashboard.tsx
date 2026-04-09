@@ -57,6 +57,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [useExternalLink, setUseExternalLink] = useState(true);
   const [rv, setRv] = useState('');
   const [webhook, setWebhook] = useState(localStorage.getItem('glycon_webhook') || '');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('');
   const [discordJson, setDiscordJson] = useState(JSON.stringify({
     "content": "@everyone",
     "embeds": [{
@@ -184,6 +186,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     } catch (e: any) { alert(e.message); }
   };
 
+  // Manual offset sync
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    setSyncStatus('Syncing...');
+    try {
+      const response = await fetch('/api/offset-sync');
+      const data = await response.json();
+      
+      if (data.status === 'updated') {
+        setSyncStatus(`✓ Updated to ${data.new_version} (${data.namespaces_updated} namespaces)`);
+        setTimeout(() => fetchLatestRelease(), 1000);
+      } else if (data.status === 'up_to_date') {
+        setSyncStatus('✓ Already up to date');
+      } else {
+        setSyncStatus(`✗ Error: ${data.message}`);
+      }
+    } catch (error: any) {
+      setSyncStatus(`✗ Error: ${error.message}`);
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncStatus(''), 5000);
+    }
+  };
+
   if (loading) return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><div className="w-8 h-8 border-2 border-purple-500 rounded-full animate-spin border-t-transparent" /></div>;
 
   return (
@@ -235,6 +261,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <button onClick={handleGlobalUpdate} disabled={uploadProgress} className="bg-purple-600 hover:bg-purple-500 px-6 rounded-lg font-bold text-sm disabled:opacity-50">
                 {uploadProgress ? '...' : 'Deploy'}
               </button>
+            </div>
+
+            <div className="pt-4 border-t border-[#1f1f1f]">
+              <h3 className="text-sm font-bold text-purple-400 mb-2">Auto Offset Sync</h3>
+              <p className="text-xs text-slate-500 mb-3">Automatically syncs offsets from imtheo.lol every 10 seconds when version changes</p>
+              <button
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className="bg-indigo-900/50 hover:bg-indigo-900/80 text-indigo-200 px-4 py-2 rounded-lg text-xs font-bold w-full disabled:opacity-50 mb-2"
+              >
+                {isSyncing ? 'Syncing...' : 'Force Sync Now'}
+              </button>
+              {syncStatus && (
+                <div className={`text-xs font-mono p-2 rounded ${syncStatus.startsWith('✓') ? 'bg-green-900/20 text-green-400' : 'bg-red-900/20 text-red-400'}`}>
+                  {syncStatus}
+                </div>
+              )}
             </div>
 
             <div className="pt-4 border-t border-[#1f1f1f]">
